@@ -36,7 +36,7 @@ class Searcher:
     def update_aoa_reading(self):
         # TODO: actually update AOA reading
         # this will require the robot to be fully stopped, and rotate itself. 
-        pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, wsr_cb)
+        pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
         rospy.init_node('wsr_py_sub_node', anonymous=True)
         # self.aoa_angle = random.uniform(-180,180)
         # self.aoa_strength = random.uniform(0,1)
