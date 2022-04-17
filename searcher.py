@@ -1,5 +1,8 @@
 import random
-
+import rospy
+from wsr_toolbox_cpp.msg import wsr_aoa_array
+import numpy as np
+from os.path import expanduser
 
 STATUS_OPTIONS = ['hunting', 'patrolling', 'listening', 'idle']
 
@@ -33,9 +36,30 @@ class Searcher:
     def update_aoa_reading(self):
         # TODO: actually update AOA reading
         # this will require the robot to be fully stopped, and rotate itself. 
-        self.aoa_angle = random.uniform(-180,180)
-        self.aoa_strength = random.uniform(0,1)
+        pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, wsr_cb)
+        rospy.init_node('wsr_py_sub_node', anonymous=True)
+        # self.aoa_angle = random.uniform(-180,180)
+        # self.aoa_strength = random.uniform(0,1)
     
+    
+    def wsr_cb(self, msg):
+        print("######################### Got AOA message ######################")
+        for tx in msg.aoa_array:
+            print("=========== ID: "+ tx.id +" =============")
+            print("TOP N AOA azimuth peak: "+ str(tx.aoa_azimuth))
+            print("TOp N AOA elevation peak: "+ str(tx.aoa_elevation))
+            print("Profile variance: "+ str(tx.profile_variance))
+            print("Profile saved as profile_"+tx.id+".csv")
+            self.aoa_angle = tx.aoa_elevation #(Calculation +- with the robot heading angle)
+            self.aoa_strength = tx.profile_variance
+
+            homedir = expanduser("~")
+            catkin_ws_name = rospy.get_param('~ws_name', 'catkin_ws')
+            rootdir = homedir+'/'+catkin_ws_name+"/src/WSR-Toolbox-cpp/debug/"
+            aoa_profile = np.asarray(tx.aoa_profile).reshape((tx.azimuth_dim, tx.elevation_dim))
+            np.savetxt(rootdir+'/profile_'+tx.id+'.csv', aoa_profile, delimiter=',')
+
+
     def stop_robot(self):
         # TODO: stops robot from movement
         self.status = 'idle'

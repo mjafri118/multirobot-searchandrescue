@@ -57,9 +57,9 @@ class SearcherFSM:
                 if self.S.obstacle_detected or self.isDemoted():
                     next_state = 'listening'
             
-            if self.current_state is 'idle':
-                # Perform normal state task
-                if manualResetHit:
-                    next_state = 'patrolling'
+            # if self.current_state is 'idle':
+            #     # Perform normal state task
+            #     if manualResetHit:
+            #         next_state = 'patrolling'
 
             self.current_state = next_state
