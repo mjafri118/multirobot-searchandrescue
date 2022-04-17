@@ -3,6 +3,8 @@ import rospy
 from wsr_toolbox_cpp.msg import wsr_aoa_array
 import numpy as np
 from os.path import expanduser
+import platform    # For getting the operating system name
+import subprocess  # For executing a shell command
 
 STATUS_OPTIONS = ['hunting', 'patrolling', 'listening', 'idle']
 
@@ -26,12 +28,19 @@ class Searcher:
         return None
         
     def is_target_sensed(self):
-        # TODO: ping the TX node's ip address, return true/false depending on if ping went through. 
-        # use self.target_ip_address
-        if self.status != 'patrolling':
-            print("Can't update target sensing when not in listening state.")
-            return
-        self.target_sensed = random.choice([0,1])
+        # Ping the TX node's ip address, return true/false depending on if ping went through. 
+        # use 
+        # Option for the number of packets as a function of
+        param = '-n' if platform.system().lower()=='windows' else '-c'
+
+        # Building the command. Ex: "ping -c 1 google.com"
+        command = ['ping', param, '1', self.target_ip_address]
+
+        target_sensed = subprocess.call(command) == 0
+        
+        rospy.publish('locobotME/target_node_sensed', Boolean, target_sensed) # sync this up with subscribers in FSM inits
+
+        return return target_sensed
     
     def update_aoa_reading(self):
         # TODO: actually update AOA reading

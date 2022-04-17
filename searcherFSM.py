@@ -1,12 +1,32 @@
 from searcher import Searcher
+from patrol import get_patrolling_locations
 import rospy
 from std_msgs.msg import Boolean, Float32
 
-NAME = 'searcher1'
+SEARCHER_CONFIGS = [
+    {
+        "name": 'searcher1',
+        "topic": '/locobot1'
+    },
+    {
+        "name": 'searcher1',
+        "topic": '/locobot2'
+    },
+    {
+        "name": 'searcher1',
+        "topic": '/locobot3'
+    }
+]
+
+CURRENT_SEARCHER_IDX = 0
+
+TARGET_NODE_IP = '192.168.1.30'
+
+
 
 class SearcherFSM:
     def __init__(self):
-        self.S = Searcher(NAME, '192.168.1.30')
+        self.S = Searcher(SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX], TARGET_NODE_IP)
 
         # setup callback subscribers to other searchers' is_target_sensed
         rospy.Subscriber("searcher2/target_node_sensed", Boolean, self.cb2_target_node_sensed)
@@ -36,11 +56,16 @@ class SearcherFSM:
     def loop(self):
         while True:
             if self.current_state is 'patrolling':
-                # Perform normal state task
+                # Perform normal state task             
+                # Get the locations that robots should go to, given
+                # Task 2: move robot to location via move_robot_to_waypoint()
+                if not self.S.is_moving():
+                    patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX)
+                    self.S.move_robot_to_waypoint(patrolling_location_goal)
 
                 # Exit conditions
                 if self.S.is_target_sensed() or self.searcher2_target_node_sensed or self.searcher3_target_node_sensed:
-                    next_state = 'hunting'
+                    next_state = 'listening'
 
             if self.current_state is 'listening':
                 # Perform normal state task
