@@ -85,10 +85,14 @@ class SearcherFSM:
             if self.current_state is 'hunting':
                 # Perform normal state task
                 error_threshold = 5 # degrees
-                while self.S.location[2] - self.S.aoa_angle > error_threshold:
-                    #rotate the robot toward aoa_angle
-                    # TODO
-                    pass
+                # first, orient the robot in the proper angle so it is headed at the target
+                rad_to_target = self.S.get_location()[2] - self.S.aoa_angle
+                if abs(rad_to_target) > error_threshold:
+                    self.S.move_robot_in_direction(linear=False, positive=rad_to_target > 0)
+                
+                # second, linearly move the robot towards the target
+                else:
+                    self.S.move_robot_in_direction(linear=True,positive=True)
 
                 # Exit conditions
                 if self.S.obstacle_detected() or self.isDemoted():

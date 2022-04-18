@@ -9,15 +9,9 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
 from tf.transformations import euler_from_quaternion
 
-STATUS_OPTIONS = ['hunting', 'patrolling', 'listening', 'idle']
 
 class Searcher: 
     def __init__(self, name, topic, target_ip_address):
-
-        rospy.init_node(name, anonymous=True)
-        self.vel_pub = rospy.Publisher("searcher1/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
-
-        # any human readable name
         self.name = name
         self.topic = topic
         self.target_ip_address = target_ip_address
@@ -26,6 +20,10 @@ class Searcher:
         self.aoa_strength = 0 # bounded to [0, 1]
 
         self.map = None # don't access this variable. always call get_map() for most up-to-date map.
+
+        rospy.init_node(name, anonymous=True)
+        self.vel_pub = rospy.Publisher(self.topic + "/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
+        # self.vel_pub = rospy.Publisher("locobot/mobile_base/commands/velocity", Twist, queue_size=1)
 
     # NOT COMPLETED
     def get_map(self):
@@ -43,10 +41,10 @@ class Searcher:
         # Building the command. Ex: "ping -c 1 google.com"
         command = ['ping', param, '1', self.target_ip_address]
 
-        target_sensed = subprocess.call(command) == 0
+        target_sensed = subprocess.call(command, stdout=subprocess.PIPE) == 0
         
         # publish so other searcher FSMs can know when another robot detects the ip.
-        rospy.publish('locobotME/target_node_sensed', Boolean, target_sensed) # sync this up with subscribers in FSM inits
+        # rospy.publish('locobotME/target_node_sensed', Boolean, target_sensed) # sync this up with subscribers in FSM inits
 
         return target_sensed
     
@@ -101,27 +99,25 @@ class Searcher:
 
     # NOT COMPLETED
     def move_robot_in_direction(self,linear=True,positive=True):
-        # used in hunting state
         # note: only making small steps, the FSM will check for obstacles
         # /locobot/mobile_base/commands/velocity geometry_msgs/Twist
-        # TODO: Figure out how to publish to the right robot
-        # Publish message only 1 time per call
 
-        while self.vel_pub.get_num_connections() < 1:
-            pass
+        STEP_SIZE_LINEAR = 1.0 # will move these many m/s at a time linearly
+        STEP_SIZE_ANGULAR = 1.0 # will move these many rad/s at a time
+
         move_cmd = Twist()
         # Fill in message details
         if linear:
-            move_cmd.linear.x = 0.1
+            move_cmd.linear.x = STEP_SIZE_LINEAR
             move_cmd.angular.z = 0.0
         else:
+            move_cmd.linear.x = 0.0
             if positive:
-                move_cmd.linear.x = 0.0
-                move_cmd.angular.z = 0.1
+                move_cmd.angular.z = STEP_SIZE_ANGULAR
             else:
-                move_cmd.linear.x = 0.0
-                move_cmd.angular.z = -0.1
+                move_cmd.angular.z = -1 * STEP_SIZE_ANGULAR
         # Publish the message
+        print(move_cmd)
         self.vel_pub.publish(move_cmd)
     
     # NOT COMPLETED
@@ -151,6 +147,8 @@ class Searcher:
 
     
 if __name__ == "__main__":
-    S = Searcher('searcher1', '/locobot', '192.168.1.30')
+    S = Searcher('searcher1', 'locobot', '192.168.1.30')
     print(S.is_moving())
     print(S.get_location())
+    print('Is target sensed: ' + 'yes' if S.is_target_sensed() else 'no')
+    # S.move_robot_in_direction(linear=True, positive=True)
