@@ -36,8 +36,7 @@ class Searcher:
         # TODO
         # Update self.map by subscribing to SLAM map topic
         return None
-
-    # NOT COMPLETED    
+ 
     def is_target_sensed(self):
         # Ping the TX node's ip address, return true/false depending on if ping went through. 
         # use 
@@ -64,6 +63,8 @@ class Searcher:
         
         self.aoa_angle = 15 #random.uniform(-180,180)
         self.aoa_strength = 1 #random.uniform(0,1)
+
+        # TODO: publish /aoa_strength topic
     
     # NOT COMPLETED
     def wsr_cb(self, msg):
