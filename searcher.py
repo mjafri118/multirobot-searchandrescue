@@ -1,5 +1,6 @@
 import random
 import rospy
+import math
 from wsr_toolbox_cpp.msg import wsr_aoa_array
 import numpy as np
 from os.path import expanduser
@@ -9,7 +10,11 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool
 from tf.transformations import euler_from_quaternion
+from sensor_msgs.msg import LaserScan
 
+STOP_DISTANCE = 0.3
+LIDAR_ERROR = 0.05
+SAFE_STOP_DISTANCE = STOP_DISTANCE + LIDAR_ERROR
 
 class Searcher: 
     def __init__(self, name, topic, target_ip_address):
@@ -86,15 +91,44 @@ class Searcher:
         self.vel_pub.publish(move_cmd)
         return
     
-    # NOT COMPLETED
     def obstacle_detected(self):
-        # TODO, Not Finished
-        obstacle = False
+        lidar_distances = self.get_scan()
+        _distance = min(lidar_distances)
 
-        if obstacle:
+        if _distance < SAFE_STOP_DISTANCE and _distance > 0:
             self.stop_robot()
             return True
         return False
+
+    def get_scan(self):
+        scan = rospy.wait_for_message(self.topic + '/scan', LaserScan)
+        scan_filter = []
+       
+        samples = len(scan.ranges)  # The number of samples is defined in 
+                                    # turtlebot3_<model>.gazebo.xacro file,
+                                    # the default is 360.
+        samples_view = 180          # 1 <= samples_view <= samples CHANGED FROM 1 TO 180 BY CALEB MOORE
+        
+        if samples_view > samples:
+            samples_view = samples
+
+        if samples_view is 1:
+            scan_filter.append(scan.ranges[0])
+        else:
+            left_lidar_samples_ranges = -(samples_view//2 + samples_view % 2)
+            right_lidar_samples_ranges = samples_view//2
+            
+            left_lidar_samples = scan.ranges[left_lidar_samples_ranges:]
+            right_lidar_samples = scan.ranges[:right_lidar_samples_ranges]
+            scan_filter.extend(left_lidar_samples + right_lidar_samples)
+
+        for i in range(samples_view):
+            if scan_filter[i] == float('Inf') or scan_filter[i] > 2:
+                scan_filter[i] = 2.0
+            elif math.isnan(scan_filter[i]):
+                scan_filter[i] = 0
+        
+        return scan_filter
 
     def move_robot_in_direction(self,linear=True,positive=True):
         # note: only making small steps, the FSM will check for obstacles
