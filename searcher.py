@@ -5,33 +5,35 @@ import numpy as np
 from os.path import expanduser
 import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Twist
+from tf.transformations import euler_from_quaternion
 
 STATUS_OPTIONS = ['hunting', 'patrolling', 'listening', 'idle']
 
 class Searcher: 
-    def __init__(self, name, target_ip_address):
+    def __init__(self, name, topic, target_ip_address):
 
-        # Need something like: rospy.init_node('talker', anonymous=True)
+        rospy.init_node(name, anonymous=True)
         self.vel_pub = rospy.Publisher("searcher1/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
 
         # any human readable name
         self.name = name
+        self.topic = topic
         self.target_ip_address = target_ip_address
-        # publish:
 
-        self.location = (random.uniform(0,1), random.uniform(0,1), random.uniform(0,1))
         self.aoa_angle = 0 # bounded to [-180, 180]
         self.aoa_strength = 0 # bounded to [0, 1]
 
-        self.status = STATUS_OPTIONS[1]
-
         self.map = None # don't access this variable. always call get_map() for most up-to-date map.
 
+    # NOT COMPLETED
     def get_map(self):
         # TODO
         # Update self.map by subscribing to SLAM map topic
         return None
-        
+
+    # NOT COMPLETED    
     def is_target_sensed(self):
         # Ping the TX node's ip address, return true/false depending on if ping went through. 
         # use 
@@ -48,6 +50,7 @@ class Searcher:
 
         return target_sensed
     
+    # NOT COMPLETED
     def update_aoa_reading(self):
         # TODO: actually update AOA reading
         # Make sure angle is relative to 0 deg in environment, not relative to robot heading
@@ -57,7 +60,7 @@ class Searcher:
         # self.aoa_angle = random.uniform(-180,180)
         # self.aoa_strength = random.uniform(0,1)
     
-    
+    # NOT COMPLETED
     def wsr_cb(self, msg):
         print("######################### Got AOA message ######################")
         for tx in msg.aoa_array:
@@ -75,15 +78,16 @@ class Searcher:
             aoa_profile = np.asarray(tx.aoa_profile).reshape((tx.azimuth_dim, tx.elevation_dim))
             np.savetxt(rootdir+'/profile_'+tx.id+'.csv', aoa_profile, delimiter=',')
 
-
+    # NOTE COMPLETED
     def stop_robot(self):
         # TODO: stops robot from movement
         self.status = 'idle'
         return
     
+    # NOT COMPLETED
     def obstacle_detected(self):
         # TODO, Not Finished
-        obstacle = # TODO
+        obstacle = True
 
         if obstacle:
             while self.vel_pub.get_num_connections() < 1:
@@ -95,6 +99,7 @@ class Searcher:
             return True
         return False
 
+    # NOT COMPLETED
     def move_robot_in_direction(self,linear=True,positive=True):
         # used in hunting state
         # note: only making small steps, the FSM will check for obstacles
@@ -119,20 +124,33 @@ class Searcher:
         # Publish the message
         self.vel_pub.publish(move_cmd)
     
-    def update_status(self, next_status):
-        self.status =  next_status
-    
+    # NOT COMPLETED
     def move_robot_to_waypoint(self, waypoint):
         # TODO: give a discrete (x,y) location for robot to travel to with obstacle avoidance
         #  this should just send a publish, i.e. do not make this function wait until reaching the waypoint before completion
         pass
 
     def is_moving(self):
-        # TODO: this can be inferred from reading the pose velocity
-        # specifically, topic:  
-        # return true or false
-        return False
+        # inferred from reading Odometry data from robot.
+        # returns true or false
+        topic_response = rospy.wait_for_message(self.topic + '/mobile_base/odom', Odometry)
+        twistLinearX_moving = abs(topic_response.twist.twist.linear.x) > 0
+        twistAngularZ_moving = abs(topic_response.twist.twist.angular.z) > 0.05 
+        return twistAngularZ_moving or twistLinearX_moving
     
-    def update_location(self):
-        # Use Subscriber to get current position (x,y,z)
-        self.location = None # TODO
+    def get_location(self):
+        # Uses one-time subscriber to get current position (x,y,w) relative to where the launch file of robot was invoked
+        # note w is in degrees
+        
+        topic_response = rospy.wait_for_message(self.topic + '/mobile_base/odom', Odometry)
+        orientation = (topic_response.pose.pose.orientation.x, 
+            topic_response.pose.pose.orientation.y, 
+            topic_response.pose.pose.orientation.z, 
+            topic_response.pose.pose.orientation.w)
+        return (topic_response.pose.pose.position.x, topic_response.pose.pose.position.y, np.rad2deg(euler_from_quaternion(orientation)[2]))
+
+    
+if __name__ == "__main__":
+    S = Searcher('searcher1', '/locobot', '192.168.1.30')
+    print(S.is_moving())
+    print(S.get_location())
