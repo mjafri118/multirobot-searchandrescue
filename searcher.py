@@ -7,6 +7,7 @@ import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
+from std_msgs.msg import Bool
 from tf.transformations import euler_from_quaternion
 
 
@@ -23,7 +24,7 @@ class Searcher:
 
         rospy.init_node(name, anonymous=True)
         self.vel_pub = rospy.Publisher(self.topic + "/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
-        # self.vel_pub = rospy.Publisher("locobot/mobile_base/commands/velocity", Twist, queue_size=1)
+        self.is_target_sensed_pub = rospy.Publisher(self.topic + "/target_node_sensed", Bool, queue_size=1)
 
     # NOT COMPLETED
     def get_map(self):
@@ -45,18 +46,19 @@ class Searcher:
         
         # publish so other searcher FSMs can know when another robot detects the ip.
         # rospy.publish('locobotME/target_node_sensed', Boolean, target_sensed) # sync this up with subscribers in FSM inits
-
+        self.is_target_sensed_pub.publish(target_sensed)
         return target_sensed
     
-    # NOT COMPLETED
+    # NOT COMPLETED (random data)
     def update_aoa_reading(self):
         # TODO: actually update AOA reading
         # Make sure angle is relative to 0 deg in environment, not relative to robot heading
         # this will require the robot to be fully stopped, and rotate itself. 
-        pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
-        rospy.init_node('wsr_py_sub_node', anonymous=True)
-        # self.aoa_angle = random.uniform(-180,180)
-        # self.aoa_strength = random.uniform(0,1)
+        # pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
+        # rospy.init_node('wsr_py_sub_node', anonymous=True)
+        
+        self.aoa_angle = 15 #random.uniform(-180,180)
+        self.aoa_strength = 1 #random.uniform(0,1)
     
     # NOT COMPLETED
     def wsr_cb(self, msg):
@@ -76,34 +78,30 @@ class Searcher:
             aoa_profile = np.asarray(tx.aoa_profile).reshape((tx.azimuth_dim, tx.elevation_dim))
             np.savetxt(rootdir+'/profile_'+tx.id+'.csv', aoa_profile, delimiter=',')
 
-    # NOTE COMPLETED
+    # stops robot from movement
     def stop_robot(self):
-        # TODO: stops robot from movement
-        self.status = 'idle'
+        move_cmd = Twist()
+        move_cmd.linear.x = 0.0
+        move_cmd.angular.z = 0.0
+        self.vel_pub.publish(move_cmd)
         return
     
     # NOT COMPLETED
     def obstacle_detected(self):
         # TODO, Not Finished
-        obstacle = True
+        obstacle = False
 
         if obstacle:
-            while self.vel_pub.get_num_connections() < 1:
-                pass
-            move_cmd = Twist()
-            move_cmd.linear.x = 0.0
-            move_cmd.angular.z = 0.0
-            self.vel_pub.publish(move_cmd)
+            self.stop_robot()
             return True
         return False
 
-    # NOT COMPLETED
     def move_robot_in_direction(self,linear=True,positive=True):
         # note: only making small steps, the FSM will check for obstacles
         # /locobot/mobile_base/commands/velocity geometry_msgs/Twist
 
-        STEP_SIZE_LINEAR = 1.0 # will move these many m/s at a time linearly
-        STEP_SIZE_ANGULAR = 1.0 # will move these many rad/s at a time
+        STEP_SIZE_LINEAR = 0.3 # will move these many m/s at a time linearly
+        STEP_SIZE_ANGULAR = 0.6 # will move these many rad/s at a time
 
         move_cmd = Twist()
         # Fill in message details
@@ -117,7 +115,6 @@ class Searcher:
             else:
                 move_cmd.angular.z = -1 * STEP_SIZE_ANGULAR
         # Publish the message
-        print(move_cmd)
         self.vel_pub.publish(move_cmd)
     
     # NOT COMPLETED
@@ -148,7 +145,8 @@ class Searcher:
     
 if __name__ == "__main__":
     S = Searcher('searcher1', 'locobot', '192.168.1.30')
-    print(S.is_moving())
-    print(S.get_location())
-    print('Is target sensed: ' + 'yes' if S.is_target_sensed() else 'no')
+    # print(S.is_moving())
+    while True:
+        print(S.get_location())
+    # print('Is target sensed: ' + 'yes' if S.is_target_sensed() else 'no')
     # S.move_robot_in_direction(linear=True, positive=True)
