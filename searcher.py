@@ -38,9 +38,10 @@ class Searcher:
 
         target_sensed = subprocess.call(command) == 0
         
+        # publish so other searcher FSMs can know when another robot detects the ip.
         rospy.publish('locobotME/target_node_sensed', Boolean, target_sensed) # sync this up with subscribers in FSM inits
 
-        return return target_sensed
+        return target_sensed
     
     def update_aoa_reading(self):
         # TODO: actually update AOA reading
