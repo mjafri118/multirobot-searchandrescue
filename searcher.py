@@ -107,7 +107,7 @@ class Searcher:
         samples = len(scan.ranges)  # The number of samples is defined in 
                                     # turtlebot3_<model>.gazebo.xacro file,
                                     # the default is 360.
-        samples_view = 180          # 1 <= samples_view <= samples CHANGED FROM 1 TO 180 BY CALEB MOORE
+        samples_view = 120          # 1 <= samples_view <= samples CHANGED FROM 1 TO 180 BY CALEB MOORE
         
         if samples_view > samples:
             samples_view = samples
@@ -139,10 +139,10 @@ class Searcher:
 
         move_cmd = Twist()
         # Fill in message details
-        if linear:
+        if linear and not self.obstacle_detected():
             move_cmd.linear.x = STEP_SIZE_LINEAR
             move_cmd.angular.z = 0.0
-        else:
+        elif not linear:
             move_cmd.linear.x = 0.0
             if positive:
                 move_cmd.angular.z = STEP_SIZE_ANGULAR
