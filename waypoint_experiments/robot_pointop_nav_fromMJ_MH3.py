@@ -53,7 +53,7 @@ class RobotSLAM_Nav:
 
         #Initialize the variable for the goal
         self.goal = MoveBaseGoal()
-        self.goal.target_pose.header.frame_id = "map"
+        self.goal.target_pose.header.frame_id = "map" #"locobot/base_link"
 
         rospy.Subscriber(position_topic, Odometry, self.odom_cb)
         rospy.Subscriber('aoa_topic', Float32, self.aoa_cb_dummy)
@@ -88,6 +88,7 @@ class RobotSLAM_Nav:
             self.goal.target_pose.pose.orientation.y = q[1]
             self.goal.target_pose.pose.orientation.z = q[2]
             self.goal.target_pose.pose.orientation.w = q[3]
+            print(self.goal)
             
             rospy.loginfo("Attempting to move to the goal")
             self.client.send_goal(self.goal)
@@ -153,5 +154,5 @@ if __name__=='__main__':
     args = parser.parse_args()
     obj = RobotSLAM_Nav(args.goal_topic, args.position_topic, args.bot)
     
-    # obj.move()
-    obj.move_along_direction()
+    obj.move()
+    # obj.move_along_direction()

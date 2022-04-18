@@ -21,12 +21,12 @@ class RobotSLAM_Nav:
         
         if(bot == 1):
             #Clear the costmap and rtabmap using rosservice calls.
-            rospy.wait_for_service('/locobot/rtabmap/reset')
-            reset_map = rospy.ServiceProxy('/locobot/rtabmap/reset', Empty)
+            rospy.wait_for_service('/locobot4/rtabmap/reset')
+            reset_map = rospy.ServiceProxy('/locobot4/rtabmap/reset', Empty)
             reset_map()
 
-            rospy.wait_for_service('/locobot/move_base/clear_costmaps')
-            clear_costmap = rospy.ServiceProxy('/locobot/move_base/clear_costmaps', Empty)
+            rospy.wait_for_service('/locobot4/move_base/clear_costmaps')
+            clear_costmap = rospy.ServiceProxy('/locobot4/move_base/clear_costmaps', Empty)
             clear_costmap()
         else:
             #Clear the costmap and rtabmap using rosservice calls.
@@ -47,7 +47,7 @@ class RobotSLAM_Nav:
         self.goal.target_pose.header.frame_id = "map"
 
         # rospy.Subscriber(position_topic, Odometry, self.odom_cb)
-        rospy.Subscriber('locobot/command/move_to_waypoint', Odometry, self.new_waypoint_goal_cb)
+        rospy.Subscriber('locobot4/command/move_to_waypoint', Odometry, self.new_waypoint_goal_cb)
         self.gotGoal = False
         self.current_position = Point()
         self.current_ori = Quaternion()
@@ -66,7 +66,7 @@ class RobotSLAM_Nav:
     #     self.current_ori.x, self.current_ori.y, self.current_ori.z, self.current_ori.w,  = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w  
     
     def move_along_direction(self):
-        rospy.loginfo("Waiting for Goal from locobot/command/move_to_waypoint...")
+        rospy.loginfo("Waiting for Goal from locobot4/command/move_to_waypoint...")
         while not rospy.is_shutdown():    
             if(self.gotGoal):
                 # Add your code here to update x and y based on the AOA direction and step-size

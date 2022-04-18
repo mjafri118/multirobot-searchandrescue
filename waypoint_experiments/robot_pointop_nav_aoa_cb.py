@@ -76,10 +76,10 @@ class RobotSLAM_Nav:
             
             q = quaternion_from_euler(0,0,float(z))
 
-            self.goal.target_pose.pose.orientation.x = q[0]
-            self.goal.target_pose.pose.orientation.y = q[1]
-            self.goal.target_pose.pose.orientation.z = q[2]
-            self.goal.target_pose.pose.orientation.w = q[3]
+            self.goal.target_pose.pose.orientation.x = q.x
+            self.goal.target_pose.pose.orientation.y = q.y
+            self.goal.target_pose.pose.orientation.z = q.z
+            self.goal.target_pose.pose.orientation.w = q.w
             
             rospy.loginfo("Attempting to move to the goal")
             self.client.send_goal(self.goal)
@@ -113,10 +113,7 @@ class RobotSLAM_Nav:
 
     def odom_cb(self,msg):
         self.current_position = msg.pose.pose.position
-        self.current_ori = (msg.pose.pose.orientation.x,
-                            msg.pose.pose.orientation.y,
-                            msg.pose.pose.orientation.z,
-                            msg.pose.pose.orientation.w)
+        self.current_ori.x, self.current_ori.y, self.current_ori.z, self.current_ori.w = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w
 
     def move_along_direction(self):
         rospy.loginfo("Waiting for AOA...")
@@ -131,10 +128,10 @@ class RobotSLAM_Nav:
                 self.goal.target_pose.pose.position.x = x
                 self.goal.target_pose.pose.position.y = y
 
-                self.goal.target_pose.pose.orientation.x = self.current_ori[0]
-                self.goal.target_pose.pose.orientation.y = self.current_ori[1]
-                self.goal.target_pose.pose.orientation.z = self.current_ori[2]
-                self.goal.target_pose.pose.orientation.w = self.current_ori[3]
+                self.goal.target_pose.pose.orientation.x = self.current_ori.x
+                self.goal.target_pose.pose.orientation.y = self.current_ori.y
+                self.goal.target_pose.pose.orientation.z = self.current_ori.z
+                self.goal.target_pose.pose.orientation.w = self.current_ori.w
                 
                 rospy.loginfo("Attempting to move to the goal")
                 self.client.send_goal(self.goal)
