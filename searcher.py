@@ -10,6 +10,10 @@ STATUS_OPTIONS = ['hunting', 'patrolling', 'listening', 'idle']
 
 class Searcher: 
     def __init__(self, name, target_ip_address):
+
+        # Need something like: rospy.init_node('talker', anonymous=True)
+        self.vel_pub = rospy.Publisher("searcher1/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
+
         # any human readable name
         self.name = name
         self.target_ip_address = target_ip_address
@@ -25,6 +29,7 @@ class Searcher:
 
     def get_map(self):
         # TODO
+        # Update self.map by subscribing to SLAM map topic
         return None
         
     def is_target_sensed(self):
@@ -45,6 +50,7 @@ class Searcher:
     
     def update_aoa_reading(self):
         # TODO: actually update AOA reading
+        # Make sure angle is relative to 0 deg in environment, not relative to robot heading
         # this will require the robot to be fully stopped, and rotate itself. 
         pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
         rospy.init_node('wsr_py_sub_node', anonymous=True)
@@ -76,19 +82,42 @@ class Searcher:
         return
     
     def obstacle_detected(self):
-        # TODO
-        return random.choice([0,1])
+        # TODO, Not Finished
+        obstacle = # TODO
 
-    def move_robot_in_direction(self, aoa_angle):
+        if obstacle:
+            while self.vel_pub.get_num_connections() < 1:
+                pass
+            move_cmd = Twist()
+            move_cmd.linear.x = 0.0
+            move_cmd.angular.z = 0.0
+            self.vel_pub.publish(move_cmd)
+            return True
+        return False
+
+    def move_robot_in_direction(self,linear=True,positive=True):
         # used in hunting state
-        # note: make sure obstacle avoidance is there
-        # /locobot/mobile_base/commands/velocity geometry_msgs/T
-        while not self.obstacle_detected():
-            # keep moving in direction of aoa_angle
-            continue
-        
-        # if we reach here, we have detected on obstacle
-        self.transition_to_listening()
+        # note: only making small steps, the FSM will check for obstacles
+        # /locobot/mobile_base/commands/velocity geometry_msgs/Twist
+        # TODO: Figure out how to publish to the right robot
+        # Publish message only 1 time per call
+
+        while self.vel_pub.get_num_connections() < 1:
+            pass
+        move_cmd = Twist()
+        # Fill in message details
+        if linear:
+            move_cmd.linear.x = 0.1
+            move_cmd.angular.z = 0.0
+        else:
+            if positive:
+                move_cmd.linear.x = 0.0
+                move_cmd.angular.z = 0.1
+            else:
+                move_cmd.linear.x = 0.0
+                move_cmd.angular.z = -0.1
+        # Publish the message
+        self.vel_pub.publish(move_cmd)
     
     def update_status(self, next_status):
         self.status =  next_status
@@ -103,3 +132,7 @@ class Searcher:
         # specifically, topic:  
         # return true or false
         return False
+    
+    def update_location(self):
+        # Use Subscriber to get current position (x,y,z)
+        self.location = None # TODO

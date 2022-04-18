@@ -51,6 +51,11 @@ class SearcherFSM:
     def cb3_aoa_strength_update(self, name, data):
         self.searcher3_aoa_strength = data
 
+    def isDemoted(self):
+        if (self.S.aoa_strength < self.searcher2_aoa_strength) or (self.S.aoa_strength < self.searcher3_aoa_strength):
+            return True
+        else:
+            return False
     
 
     def loop(self):
@@ -62,13 +67,15 @@ class SearcherFSM:
                 if not self.S.is_moving():
                     patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX)
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
+                next_state = 'patrolling' # Because we don't have a next_state yet
 
                 # Exit conditions
                 if self.S.is_target_sensed() or self.searcher2_target_node_sensed or self.searcher3_target_node_sensed:
                     next_state = 'listening'
 
             if self.current_state is 'listening':
-                # Perform normal state task
+                # Perform normal state task, be sure to publish aoa data to the other robots
+                # AOA angles should be in global frame, not robot frames
                 self.S.update_aoa_reading()
 
                 # Exit conditions
@@ -77,9 +84,14 @@ class SearcherFSM:
             
             if self.current_state is 'hunting':
                 # Perform normal state task
+                error_threshold = 5 # degrees
+                while self.S.location[2] - self.S.aoa_angle > error_threshold:
+                    #rotate the robot toward aoa_angle
+                    # TODO
+                    pass
 
                 # Exit conditions
-                if self.S.obstacle_detected or self.isDemoted():
+                if self.S.obstacle_detected() or self.isDemoted():
                     next_state = 'listening'
             
             # if self.current_state is 'idle':
