@@ -7,7 +7,7 @@ import numpy as np
 from os.path import expanduser
 import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
-from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry, OccupancyGrid
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool
 from tf.transformations import euler_from_quaternion
@@ -35,9 +35,16 @@ class Searcher:
 
     # NOT COMPLETED
     def get_map(self):
-        # TODO
         # Update self.map by subscribing to SLAM map topic
-        return None
+        map = rospy.wait_for_message('/'+self.topic+'/rtabmap/grid_map', OccupancyGrid)
+        res = map.info.resolution # m/cell
+        width = map.info.width # cells
+        height = map.info.height # cells
+        origin_x = map.info.origin.position.x
+        origin_y = map.info.origin.position.y
+        origin_angle = np.rad2deg(euler_from_quaternion(map.info.origin.orientation.z))
+        data = map.data # the map data, in row-major order, starting with (0,0).  Occupancy probabilities are in range [0,100]. Unknown is -1
+        return res,width,height,origin_x,origin_y,origin_angle,data
  
     def is_target_sensed(self):
         # Ping the TX node's ip address, return true/false depending on if ping went through. 
