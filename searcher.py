@@ -30,7 +30,7 @@ class Searcher:
         self.vel_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
         self.is_target_sensed_pub = rospy.Publisher("/"+self.topic+"/target_node_sensed", Bool, queue_size=1)
         self.goal_waypoint_pub = rospy.Publisher("/"+self.topic+"/goal_waypoint", Odometry, queue_size=1)
-        self.AOA_pub = rospy.Publisher("/"+self.topic+"/AOA_topic", Float32, queue_size=1)
+        self.AOA_pub = rospy.Publisher("/"+self.topic+"/aoa_strength", Float32, queue_size=1)
 
     def get_map(self):
         # Update self.map by subscribing to SLAM map topic
