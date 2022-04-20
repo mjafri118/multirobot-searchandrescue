@@ -9,7 +9,7 @@ import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
 from nav_msgs.msg import Odometry, OccupancyGrid
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32
 from tf.transformations import euler_from_quaternion
 from sensor_msgs.msg import LaserScan
 
@@ -29,9 +29,10 @@ class Searcher:
         self.map = None # don't access this variable. always call get_map() for most up-to-date map.
 
         rospy.init_node(name, anonymous=True)
-        self.vel_pub = rospy.Publisher(self.topic + "/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
-        self.is_target_sensed_pub = rospy.Publisher(self.topic + "/target_node_sensed", Bool, queue_size=1)
-        self.goal_waypoint_pub = rospy.Publisher("/"+self.topic + "/goal_waypoint", Odometry, queue_size=1)
+        self.vel_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
+        self.is_target_sensed_pub = rospy.Publisher("/"+self.topic+"/target_node_sensed", Bool, queue_size=1)
+        self.goal_waypoint_pub = rospy.Publisher("/"+self.topic+"/goal_waypoint", Odometry, queue_size=1)
+        self.AOA_pub = rospy.Publisher("/"+self.topic+"/AOA_topic", Float32, queue_size=1)
 
     def get_map(self):
         # Update self.map by subscribing to SLAM map topic
@@ -68,9 +69,11 @@ class Searcher:
         # this will require the robot to be fully stopped, and rotate itself. 
         # pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
         # rospy.init_node('wsr_py_sub_node', anonymous=True)
-        self.aoa_angle = 15 #random.uniform(-180,180)
-        self.aoa_strength = 1 #random.uniform(0,1)
-        # TODO: publish /aoa_strength topic
+        self.aoa_angle = 15 #replace with actual AOA angle relative to world frame, not robot heading. Use self.get_location to find robot's pose
+        self.aoa_strength = 1 #replace with actual AOA strength
+        
+        # Publish AOA_strength- MUST HAVE
+        self.AOA_pub.pub(self.aoa_strength) # This publishes the AOA to the other robots
     
     # NOT COMPLETED
     def wsr_cb(self, msg):

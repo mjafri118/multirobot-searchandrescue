@@ -43,7 +43,7 @@ class RobotSLAM_Nav:
 
 
         # This subscriber listens for goals to go to on TODO_topic
-        rospy.Subscriber('TODO_topic', Odometry, self.goal_callback)
+        rospy.Subscriber('/'+robot_name+'/goal_waypoint', Odometry, self.goal_callback)
         self.gotGOAL = False
         self.current_position = Point()
         self.current_ori = Quaternion()
