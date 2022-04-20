@@ -26,8 +26,6 @@ class Searcher:
         self.aoa_angle = 0 # bounded to [-180, 180]
         self.aoa_strength = 0 # bounded to [0, 1]
 
-        self.map = None # don't access this variable. always call get_map() for most up-to-date map.
-
         rospy.init_node(name, anonymous=True)
         self.vel_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
         self.is_target_sensed_pub = rospy.Publisher("/"+self.topic+"/target_node_sensed", Bool, queue_size=1)
