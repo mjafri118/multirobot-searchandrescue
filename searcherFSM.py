@@ -125,7 +125,7 @@ class SearcherFSM:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Get the inputs.')
-    parser.add_argument('--robot_index', type=str)
+    parser.add_argument('--robot_index', type=int) # Options: 0,1,2
     args = parser.parse_args()
     F = SearcherFSM(args.robot_index)
     while True: 
