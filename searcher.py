@@ -156,6 +156,7 @@ class Searcher:
     
     # NOT COMPLETED
     def move_robot_to_waypoint(self, waypoint):
+        # currently requires waypoint.py to be running on each robot
         # give a discrete (x,y,theta) location for robot to travel to with obstacle avoidance
         #  this should just send a publish, i.e. do not make this function wait until reaching the waypoint before completion
 

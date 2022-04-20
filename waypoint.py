@@ -1,3 +1,7 @@
+# Terminal command: python waypoint.py --robot_name locobot3
+# Terminal command: python waypoint.py --robot_name locobot4
+# Terminal command: python waypoint.py --robot_name locobot5
+
 from termios import TIOCPKT_DOSTOP
 import rospy
 import actionlib
@@ -6,6 +10,7 @@ from tf.transformations import quaternion_from_euler
 from std_srvs.srv import Empty
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion
+import argparse
 
 
 class RobotSLAM_Nav:
@@ -83,6 +88,12 @@ class RobotSLAM_Nav:
                     rospy.loginfo("Reached goal successfully")
 
 if __name__=='__main__':
-    robot_name = 'locobot4'
-    obj = RobotSLAM_Nav(robot_name)
+    parser = argparse.ArgumentParser(description='Get the inputs.')
+    parser.add_argument('--robot_name', type=str)
+    args = parser.parse_args()
+    obj = RobotSLAM_Nav(args.robot_name)
     obj.move()
+
+    #robot_name = 'locobot4'
+    #obj = RobotSLAM_Nav(robot_name)
+    #obj.move()
