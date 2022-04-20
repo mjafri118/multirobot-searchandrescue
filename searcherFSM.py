@@ -1,7 +1,12 @@
+# Terminal command to be run on robot: python searcherFSM.py --robot_index 0
+# Terminal command to be run on robot: python searcherFSM.py --robot_index 1
+# Terminal command to be run on robot: python searcherFSM.py --robot_index 2
+
 from searcher import Searcher
 from patrol import get_patrolling_locations
 import rospy
 from std_msgs.msg import Bool, Float32
+import argparse
 
 # code is currently built to support THREE searcher agents exactly. 
 SEARCHER_CONFIGS = [
@@ -19,12 +24,13 @@ SEARCHER_CONFIGS = [
     }
 ]
 
-CURRENT_SEARCHER_IDX = 0
+#CURRENT_SEARCHER_IDX = 0
 
 TARGET_NODE_IP = '192.168.1.30'
 
 class SearcherFSM:
-    def __init__(self):
+    def __init__(self, robot_index):
+        CURRENT_SEARCHER_IDX = robot_index
         self.S = Searcher(SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX]['name'], SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX]['topic'], TARGET_NODE_IP)
 
         # setup callback subscribers to other searchers' is_target_sensed
@@ -118,6 +124,9 @@ class SearcherFSM:
             self.current_state = next_state
 
 if __name__ == "__main__":
-    F = SearcherFSM()
+    parser = argparse.ArgumentParser(description='Get the inputs.')
+    parser.add_argument('--robot_index', type=str)
+    args = parser.parse_args()
+    F = SearcherFSM(args.robot_index)
     while True: 
         F.loop()
