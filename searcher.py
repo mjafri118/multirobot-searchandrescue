@@ -33,7 +33,6 @@ class Searcher:
         self.is_target_sensed_pub = rospy.Publisher(self.topic + "/target_node_sensed", Bool, queue_size=1)
         self.goal_waypoint_pub = rospy.Publisher("/"+self.topic + "/goal_waypoint", Odometry, queue_size=1)
 
-    # NOT COMPLETED
     def get_map(self):
         # Update self.map by subscribing to SLAM map topic
         map = rospy.wait_for_message('/'+self.topic+'/rtabmap/grid_map', OccupancyGrid)
@@ -69,10 +68,8 @@ class Searcher:
         # this will require the robot to be fully stopped, and rotate itself. 
         # pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
         # rospy.init_node('wsr_py_sub_node', anonymous=True)
-        
         self.aoa_angle = 15 #random.uniform(-180,180)
         self.aoa_strength = 1 #random.uniform(0,1)
-
         # TODO: publish /aoa_strength topic
     
     # NOT COMPLETED
