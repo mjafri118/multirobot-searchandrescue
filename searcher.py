@@ -86,8 +86,8 @@ class Searcher:
             aoa_profile = np.asarray(tx.aoa_profile).reshape((tx.azimuth_dim, tx.elevation_dim))
             np.savetxt(rootdir+'/profile_'+tx.id+'.csv', aoa_profile, delimiter=',')
 
-    # stops robot from moving
     def stop_robot(self):
+        # stops robot from moving
         move_cmd = Twist()
         move_cmd.linear.x = 0.0
         move_cmd.angular.z = 0.0
@@ -154,7 +154,6 @@ class Searcher:
         # Publish the message
         self.vel_pub.publish(move_cmd)
     
-    # NOT COMPLETED
     def move_robot_to_waypoint(self, waypoint):
         # currently requires waypoint.py to be running on each robot
         # give a discrete (x,y,theta) location for robot to travel to with obstacle avoidance
