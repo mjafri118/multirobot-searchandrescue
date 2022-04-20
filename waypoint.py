@@ -1,89 +1,76 @@
+from termios import TIOCPKT_DOSTOP
 import rospy
 import actionlib
 from move_base_msgs.msg import MoveBaseAction , MoveBaseGoal
 from tf.transformations import quaternion_from_euler
 from std_srvs.srv import Empty
-from std_msgs.msg import Float32
-import math
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion
-import argparse
 
-# PI = 3.14
 
-# if this works w/o position topic specified, remove mention of it from class instatntiation + all of code
 class RobotSLAM_Nav:
-    def __init__(self, goal_topic, position_topic,bot):
+    def __init__(self, robot_name):
         rospy.init_node("move_base_tester")
-        self.client = actionlib.SimpleActionClient(goal_topic,MoveBaseAction)
+        self.client = actionlib.SimpleActionClient('/'+robot_name+'/move_base',MoveBaseAction)
         self.timeout = 60 #secs
         self.step_size = 1.0
         
-        if(bot == 1):
-            #Clear the costmap and rtabmap using rosservice calls.
-            rospy.wait_for_service('/locobot4/rtabmap/reset')
-            reset_map = rospy.ServiceProxy('/locobot4/rtabmap/reset', Empty)
-            reset_map()
+        #Clear the costmap and rtabmap using rosservice calls.
+        print("Resetting rtabmap")
+        rospy.wait_for_service('/'+robot_name+'/rtabmap/reset')
+        reset_map = rospy.ServiceProxy('/'+robot_name+'/rtabmap/reset', Empty)
+        reset_map()
+        print("Rtab map reset done")
 
-            rospy.wait_for_service('/locobot4/move_base/clear_costmaps')
-            clear_costmap = rospy.ServiceProxy('/locobot4/move_base/clear_costmaps', Empty)
-            clear_costmap()
-        else:
-            #Clear the costmap and rtabmap using rosservice calls.
-            rospy.wait_for_service('/rtabmap/reset')
-            reset_map = rospy.ServiceProxy('/rtabmap/reset', Empty)
-            reset_map()
-
-            rospy.wait_for_service('/move_base/clear_costmaps')
-            clear_costmap = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
-            clear_costmap()
-
+        print("Clearing cost map")
+        rospy.wait_for_service('/'+robot_name+'/move_base/clear_costmaps')
+        clear_costmap = rospy.ServiceProxy('/'+robot_name+'/move_base/clear_costmaps', Empty)
+        clear_costmap()
+        print("Cost map cleared")
 
         #Create the actionlib server
+        print("Waiting for action lib server")
         self.client.wait_for_server()
 
         #Initialize the variable for the goal
         self.goal = MoveBaseGoal()
-        self.goal.target_pose.header.frame_id = "map"
+        self.goal.target_pose.header.frame_id = robot_name+"/map"
 
-        # rospy.Subscriber(position_topic, Odometry, self.odom_cb)
-        rospy.Subscriber('locobot4/command/move_to_waypoint', Odometry, self.new_waypoint_goal_cb)
-        self.gotGoal = False
+
+        # This subscriber listens for goals to go to on TODO_topic
+        rospy.Subscriber('TODO_topic', Odometry, self.goal_callback)
+        self.gotGOAL = False
         self.current_position = Point()
         self.current_ori = Quaternion()
 
-    def new_waypoint_goal_cb(self, msg):
-        self.goalX = msg.pose.pose.position.x
-        self.goalY = msg.pose.pose.position.y
-        self.gotGoal = True
-        print("Got new Goal!")
+    def goal_callback(self, msg):
+        self.goal_x = msg.pose.pose.position.x
+        self.goal_y = msg.pose.pose.position.y
+        self.goal_z = msg.pose.pose.orientation.z
+        self.gotGOAL = True
+        print("Got new goal")
 
-
-    # def odom_cb(self,msg):
-    #     #Update this callback function to get the positions of the robot from its odometery.
-    #     #Use the variables self.current_position and self.current_ori to store the position and orientation values.
-    #     self.current_position.x, self.current_position.y, self.current_position.z = msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z
-    #     self.current_ori.x, self.current_ori.y, self.current_ori.z, self.current_ori.w,  = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w  
-    
-    def move_along_direction(self):
-        rospy.loginfo("Waiting for Goal from locobot4/command/move_to_waypoint...")
+    def move(self):
+        rospy.loginfo("Waiting for Goal...")
         while not rospy.is_shutdown():    
-            if(self.gotGoal):
-                # Add your code here to update x and y based on the AOA direction and step-size
-                x = self.goalX
-                y = self.goalY
-
+            if(self.gotGOAL):
+                # Add your code here to update x and y based on the goal
+                x = self.goal_x
+                y = self.goal_y
+                z = self.goal_z
                 print("Moving to next location x = ",x, ", y =",y)
-                
-                self.goal.target_pose.header.stamp = rospy.Time.now()
-                self.goal.target_pose.pose.position.x = x
-                self.goal.target_pose.pose.position.y = y
 
-                self.goal.target_pose.pose.orientation.x = self.current_ori.x
-                self.goal.target_pose.pose.orientation.y = self.current_ori.y
-                self.goal.target_pose.pose.orientation.z = self.current_ori.z
-                self.goal.target_pose.pose.orientation.w = self.current_ori.w
-                
+                self.goal.target_pose.header.stamp = rospy.Time.now()
+                self.goal.target_pose.pose.position.x = float(x)
+                self.goal.target_pose.pose.position.y = float(y)
+            
+                q = quaternion_from_euler(0,0,float(z))
+
+                self.goal.target_pose.pose.orientation.x = q[0]
+                self.goal.target_pose.pose.orientation.y = q[1]
+                self.goal.target_pose.pose.orientation.z = q[2]
+                self.goal.target_pose.pose.orientation.w = q[3]
+                print(self.goal)
                 rospy.loginfo("Attempting to move to the goal")
                 self.client.send_goal(self.goal)
                 wait=self.client.wait_for_result(rospy.Duration(self.timeout))
@@ -95,15 +82,7 @@ class RobotSLAM_Nav:
                 else:
                     rospy.loginfo("Reached goal successfully")
 
-                self.gotGoal = False
-
 if __name__=='__main__':
-    parser = argparse.ArgumentParser(description='Get the inputs.')
-    parser.add_argument('--goal_topic', type=str)
-    parser.add_argument('--position_topic', type=str)
-    parser.add_argument('--bot', type=int)
-    args = parser.parse_args()
-    obj = RobotSLAM_Nav(args.goal_topic, args.position_topic, args.bot)
-    
-    # obj.move()
-    obj.move_along_direction()
+    robot_name = 'locobot4'
+    obj = RobotSLAM_Nav(robot_name)
+    obj.move()

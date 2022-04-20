@@ -1,4 +1,5 @@
 import random
+from re import T
 import rospy
 import math
 from wsr_toolbox_cpp.msg import wsr_aoa_array
@@ -30,6 +31,7 @@ class Searcher:
         rospy.init_node(name, anonymous=True)
         self.vel_pub = rospy.Publisher(self.topic + "/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
         self.is_target_sensed_pub = rospy.Publisher(self.topic + "/target_node_sensed", Bool, queue_size=1)
+        self.goal_waypoint_pub = rospy.Publisher("/"+self.topic + "/goal_waypoint", Odometry, queue_size=1)
 
     # NOT COMPLETED
     def get_map(self):
@@ -84,7 +86,7 @@ class Searcher:
             aoa_profile = np.asarray(tx.aoa_profile).reshape((tx.azimuth_dim, tx.elevation_dim))
             np.savetxt(rootdir+'/profile_'+tx.id+'.csv', aoa_profile, delimiter=',')
 
-    # stops robot from movement
+    # stops robot from moving
     def stop_robot(self):
         move_cmd = Twist()
         move_cmd.linear.x = 0.0
@@ -154,9 +156,17 @@ class Searcher:
     
     # NOT COMPLETED
     def move_robot_to_waypoint(self, waypoint):
-        # TODO: give a discrete (x,y) location for robot to travel to with obstacle avoidance
+        # give a discrete (x,y,theta) location for robot to travel to with obstacle avoidance
         #  this should just send a publish, i.e. do not make this function wait until reaching the waypoint before completion
-        pass
+
+        goal_cmd = Odometry()
+        goal_cmd.pose.pose.position.x = waypoint[0]
+        goal_cmd.pose.pose.position.y = waypoint[1]
+        if len(waypoint) == 2:
+            goal_cmd.pose.pose.position.z = 0.0
+        else:
+            goal_cmd.pose.pose.position.z = waypoint[2]
+        self.goal_waypoint_pub.publish(goal_cmd)
 
     def is_moving(self):
         # inferred from reading Odometry data from robot.
