@@ -1,6 +1,6 @@
-# Terminal command: python waypoint.py --robot_name locobot3
-# Terminal command: python waypoint.py --robot_name locobot4
-# Terminal command: python waypoint.py --robot_name locobot5
+# Terminal command to be run on robot: python waypoint.py --robot_name locobot3
+# Terminal command to be run on robot: python waypoint.py --robot_name locobot4
+# Terminal command to be run on robot: python waypoint.py --robot_name locobot5
 
 from termios import TIOCPKT_DOSTOP
 import rospy
