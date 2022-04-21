@@ -12,6 +12,7 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool, Float32
 from tf.transformations import euler_from_quaternion
 from sensor_msgs.msg import LaserScan
+from map_to_room_frame import map_to_room_frame
 
 STOP_DISTANCE = 0.3
 LIDAR_ERROR = 0.05
@@ -33,16 +34,62 @@ class Searcher:
         self.AOA_pub = rospy.Publisher("/"+self.topic+"/aoa_strength", Float32, queue_size=1)
 
     def get_map(self):
-        # Update self.map by subscribing to SLAM map topic
-        map = rospy.wait_for_message('/'+self.topic+'/rtabmap/grid_map', OccupancyGrid)
-        res = map.info.resolution # m/cell
-        width = map.info.width # cells
-        height = map.info.height # cells
-        origin_x = map.info.origin.position.x
-        origin_y = map.info.origin.position.y
-        origin_angle = np.rad2deg(euler_from_quaternion(map.info.origin.orientation.z))
-        data = map.data # the map data, in row-major order, starting with (0,0).  Occupancy probabilities are in range [0,100]. Unknown is -1
-        return res,width,height,origin_x,origin_y,origin_angle,data
+        return map_to_room_frame(self.topic)
+        # # Update self.map by subscribing to SLAM map topic
+        # drop_point_offset_x = 0.0 # if closer to left wall of room, offset should be positive
+        # drop_point_offset_y = 0.0 # if closer to back wall of room, offset should be positive
+
+        # map = rospy.wait_for_message('/'+self.topic+'/rtabmap/grid_map', OccupancyGrid)
+        # #res = map.info.resolution # m/cell
+        # width = map.info.width # cells
+        # height = map.info.height # cells
+        # actual_map_origin_x = map.info.origin.position.x
+        # actual_map_origin_y = map.info.origin.position.y
+        # #origin_angle = np.rad2deg(euler_from_quaternion(map.info.origin.orientation.z))
+        # data = map.data # the map data, in row-major order, starting with (0,0).  Occupancy probabilities are in range [0,100]. Unknown is -1
+        # res = 0.05 # Meters
+
+        # testbed_w = 7.92 # meters wide (heading of robot at initialization)
+        # testbed_h = 4.27 # meters tall
+        # testbed_w_cells = int(round(testbed_w/res))
+        # testbed_h_cells = int(round(testbed_h/res))
+        # smaller_map = np.zeros((testbed_w_cells,testbed_h_cells))
+
+        # origin_x = actual_map_origin_x # Should be negative
+        # origin_y = actual_map_origin_y # Should be negative
+        # origin_x_grid = int(round(origin_x/res))
+        # origin_y_grid = int(round(origin_y/res))
+
+        # lower_left_x = (-6.86 + drop_point_offset_x) - origin_x
+        # lower_left_y = (-0.99 - drop_point_offset_y) - origin_y
+        # lower_left_x_grid = int(round(lower_left_x/res))
+        # lower_left_y_grid = int(round(lower_left_y/res))
+
+        # upper_right_x = (1.07 + drop_point_offset_x) - origin_x
+        # upper_right_y = (3.28 - drop_point_offset_y) - origin_y
+        # upper_right_x_grid = int(round(upper_right_x/res))
+        # upper_right_y_grid = int(round(upper_right_y/res))
+
+        # iter = 0
+        # # Saving smaller map by limiting scope
+        # for i in range(height):
+        #     for j in range(width):
+        #         column = j
+        #         row = height-i
+        #         index = ((width)*(row-1)) + j
+        #         if row == -origin_y_grid and column == -origin_x_grid:
+        #             # If the robot is here
+        #             small_column = iter % testbed_w_cells
+        #             small_row = int((iter - small_row)/testbed_w_cells)
+        #             smaller_map[small_column,small_row] = 7 # Value for robot taking up a space
+        #             iter+=1
+
+        #         elif row >= lower_left_y_grid and row <= upper_right_y_grid and column >= lower_left_x_grid and column <= upper_right_x_grid:
+        #             small_column = iter % testbed_w_cells
+        #             small_row = int((iter - small_row)/testbed_w_cells)
+        #             smaller_map[small_column,small_row] = data[index]
+        #             iter+=1
+        # return smaller_map
  
     def is_target_sensed(self):
         # Ping the TX node's ip address, return true/false depending on if ping went through. 
