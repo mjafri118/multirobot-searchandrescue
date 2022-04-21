@@ -115,11 +115,14 @@ class SearcherFSM:
                     next_state = 'listening'
             
             # if self.current_state is 'idle':
-            #     # Perform normal state task
+            # Perform normal state task
             #     if manualResetHit:
             #         next_state = 'patrolling'
             if(self.current_state != next_state):
                 print("Changing state to: " + next_state)
+            
+            # TODO: subscribe once to some new topic that is like '/operator/game_over' and takes you to idle
+                    
 
             self.current_state = next_state
 
