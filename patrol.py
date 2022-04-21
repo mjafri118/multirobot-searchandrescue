@@ -31,9 +31,10 @@ def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
     #         map[idx,idy] = random.choices(population = [-1,0,25,100], weights= [.65, .25, .1])
 
     # switch out any algorithm here
-    # patrolling_goal_locations = neopolitan(searcher_locations, map)
-    patrolling_goal_locations = dontMove(searcher_locations, map)
-    
+    print("Running Neopolitan coverage algorithm")
+    patrolling_goal_locations = neopolitan(searcher_locations, map)
+    # patrolling_goal_locations = dontMove(searcher_locations, map)
+    print('Ideal coverage location: ' + str(patrolling_goal_locations[CURRENT_SEARCHER_IDX]))
     return patrolling_goal_locations[CURRENT_SEARCHER_IDX]
 
 # neopolitan algorithm
@@ -68,7 +69,7 @@ def neopolitan(searcher_locations, map):
         # neopolitan_ideals[searcher_idx] = room_frame_to_robot_frame((layers_used * layer_width + layer_width / 2, map_height/2))
         neopolitan_ideals[searcher_idx] = (layers_used * layer_width + layer_width / 2, map_height/2)
         layers_used += 1
-    
+    return neopolitan_ideals
     free_spaces = np.argwhere(map == FREE_SPACE_IN_MAP_NUMBER)
     
     # only go to target if feasible
@@ -129,6 +130,7 @@ def dontMove(searcher_locations, map):
 # gets where all available robots are in ROOM FRAME. 
 # note, if the robot is not online, their location is (-1, -1)
 def get_current_searcher_locations(SEARCHER_CONFIGS):
+    print("Getting robot current searcher locations")
     searcher_locations = [(None,None)]* len(SEARCHER_CONFIGS)
 
     for i in range(len(SEARCHER_CONFIGS)):
@@ -140,7 +142,7 @@ def get_current_searcher_locations(SEARCHER_CONFIGS):
         # This controls for case if a robot dies. Algorithm should proceed.
         except rospy.exceptions.ROSException:
             searcher_locations[i] = (-1,-1)
-    
+    print("Returning robot current searcher locations")
     return searcher_locations
 
 # if robot is at where it begins,

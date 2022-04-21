@@ -3,10 +3,12 @@ import numpy as np
 import rospy
 
 def map_to_room_frame(topic):
+    print("Mapping to room frame...")
     drop_point_offset_x = 0.0 # if closer to left wall of room, offset should be positive
     drop_point_offset_y = 0.0 # if closer to back wall of room, offset should be positive
 
     map = rospy.wait_for_message('/'+ topic+'/rtabmap/grid_map', OccupancyGrid)
+    print("Received map")
     #res = map.info.resolution # m/cell
     width = map.info.width # cells
     height = map.info.height # cells

@@ -134,6 +134,7 @@ class Searcher:
             self.aoa_angle = -(360.0 - self.aoa_angle)
         elif self.aoa_angle < -180.0 and self.aoa_angle >= -360.0:
             self.aoa_angle = (360.0 + self.aoa_angle)
+        self.aoa_angle = 90
         # Publish AOA_strength- MUST HAVE
         self.AOA_pub.publish(self.aoa_strength) # This publishes the AOA to the other robots
     
