@@ -65,6 +65,7 @@ class Searcher:
         # TODO: actually update AOA reading
         # Make sure angle is relative to 0 deg in environment, not relative to robot heading
         # this will require the robot to be fully stopped, and rotate itself. 
+        self.stop_robot()
         aoa_sub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
         # rospy.init_node('wsr_py_sub_node', anonymous=True)
         self.aoa_angle = 15 #replace with actual AOA angle relative to world frame, not robot heading. Use self.get_location to find robot's pose
