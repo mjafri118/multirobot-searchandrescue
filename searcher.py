@@ -128,7 +128,13 @@ class Searcher:
         self.aoa_angle = 90 #replace with actual AOA angle relative to world frame, not robot heading. Use self.get_location to find robot's pose
         self.aoa_strength = 1 #replace with actual AOA strength
         
-        # # Publish AOA_strength- MUST HAVE
+        # Convert AOA_angle to world frame
+        self.aoa_angle = (self.aoa_angle + self.get_location[2]) % 360
+        if self.aoa_angle > 180.0 and self.aoa_angle <= 360.0:
+            self.aoa_angle = -(360.0 - self.aoa_angle)
+        elif self.aoa_angle < -180.0 and self.aoa_angle >= -360.0:
+            self.aoa_angle = (360.0 + self.aoa_angle)
+        # Publish AOA_strength- MUST HAVE
         self.AOA_pub.publish(self.aoa_strength) # This publishes the AOA to the other robots
     
     # NOT COMPLETED
