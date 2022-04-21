@@ -3,22 +3,18 @@
 # ON ROBOT:
 
 # Bringing up the searcher robot (locobot3)
-- roslaunch interbotix_xslocobot_control xslocobot_python.launch robot_model:=locobot_px100 use_nav:=true use_lidar:=true rtabmap_args:=-d robot_name:=locobot3
 
 # ON PC:
 - roscore
 
-- python waypoint.py --robot_name locobot3
+- roslaunch interbotix_xslocobot_control xslocobot_python.launch robot_model:=locobot_px100 use_nav:=true use_lidar:=true rtabmap_args:=-d robot_name:=locobot3
 
-- python searcherFSM.py --robot_index 0
+- python waypoint.py --robot_name locobot3
 
 # Bringing up RVIZ
 - roslaunch interbotix_xslocobot_descriptions remote_view.launch rviz_frame:=locobot3/map robot_name:=locobot3
 
 # WSR AND SLAM FOR LOCOBOT5
-
-Step 0
-- roscore
 
 # Step 1 PC:
 
@@ -38,8 +34,8 @@ Step 0
 
 # Step 5 PC:
 
-- rostopic pub --once /run_test_2 std_msgs/Bool "data: true" (NO LONGER NEEDED. IMPLEMENTED IN LISTENER GET AOA CODE.)
-
 OPTIONALLY: TRYING TO RUN ON PC
 - roslaunch wsr_toolbox_cpp wsr_check_csi.launch config_fn:=${HOME}/Harvard_CS286/cs286_mini_hack_2/cs286_config_live.json ws_name:=cs286_hack_ws
 
+# Step 6: PC
+- - python searcherFSM.py --robot_index 0
