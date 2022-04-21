@@ -3,10 +3,11 @@
 # ON ROBOT:
 
 # Bringing up the searcher robot (locobot3)
-- roslaunch interbotix_xslocobot_control xslocobot_python.launch robot_model:=locobot_px100 use_nav:=true use_lidar:=true rtabmap_args:=-d robot_name:=locobot3
 
 # ON PC:
 - roscore
+
+- roslaunch interbotix_xslocobot_control xslocobot_python.launch robot_model:=locobot_px100 use_nav:=true use_lidar:=true rtabmap_args:=-d robot_name:=locobot3
 
 - python waypoint.py --robot_name locobot3
 
@@ -14,9 +15,6 @@
 - roslaunch interbotix_xslocobot_descriptions remote_view.launch rviz_frame:=locobot3/map robot_name:=locobot3
 
 # WSR AND SLAM FOR LOCOBOT5
-
-# Step 0
-- roscore
 
 # Step 1 PC:
 
