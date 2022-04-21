@@ -65,7 +65,7 @@ class Searcher:
         # TODO: actually update AOA reading
         # Make sure angle is relative to 0 deg in environment, not relative to robot heading
         # this will require the robot to be fully stopped, and rotate itself. 
-        # pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
+        aoa_sub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
         # rospy.init_node('wsr_py_sub_node', anonymous=True)
         self.aoa_angle = 15 #replace with actual AOA angle relative to world frame, not robot heading. Use self.get_location to find robot's pose
         self.aoa_strength = 1 #replace with actual AOA strength
@@ -81,15 +81,10 @@ class Searcher:
             print("TOP N AOA azimuth peak: "+ str(tx.aoa_azimuth))
             print("TOp N AOA elevation peak: "+ str(tx.aoa_elevation))
             print("Profile variance: "+ str(tx.profile_variance))
-            print("Profile saved as profile_"+tx.id+".csv")
             self.aoa_angle = tx.aoa_elevation #(Calculation +- with the robot heading angle)
             self.aoa_strength = tx.profile_variance
-
-            homedir = expanduser("~")
-            catkin_ws_name = rospy.get_param('~ws_name', 'catkin_ws')
-            rootdir = homedir+'/'+catkin_ws_name+"/src/WSR-Toolbox-cpp/debug/"
             aoa_profile = np.asarray(tx.aoa_profile).reshape((tx.azimuth_dim, tx.elevation_dim))
-            np.savetxt(rootdir+'/profile_'+tx.id+'.csv', aoa_profile, delimiter=',')
+            print("Print AOA", aoa_profile)
 
     def stop_robot(self):
         # stops robot from moving
