@@ -4,6 +4,7 @@ from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
 import numpy as np
 from map_to_room_frame import map_to_room_frame
+from scipy.spatial import distance  
 
 drop_point_offset_x = 0.0
 drop_point_offset_y = 0.0
@@ -24,17 +25,14 @@ def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
     # GET MAP DATA
     # 158 x  by 85 y
     map = map_to_room_frame(SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX]['topic'])
-    print(map)
     # generate random choices. 
     # for idx in range(158):
     #     for idy in range(85):
     #         map[idx,idy] = random.choices(population = [-1,0,25,100], weights= [.65, .25, .1])
 
     # switch out any algorithm here
-    patrolling_goal_locations = neopolitan(searcher_locations, map)
-    # patrolling_goal_locations = dontMove(searcher_locations, map)
-    print("PATROLLING GOAL LOCATIONS BELOW: ")
-    print(patrolling_goal_locations)
+    # patrolling_goal_locations = neopolitan(searcher_locations, map)
+    patrolling_goal_locations = dontMove(searcher_locations, map)
     
     return patrolling_goal_locations[CURRENT_SEARCHER_IDX]
 
@@ -46,7 +44,6 @@ def neopolitan(searcher_locations, map):
     live_searcher_count = 0
     for searcher_location in searcher_locations:
         live_searcher_count += 1 if searcher_location != (-1,-1) else 0
-    print('live_searcher_count is (expecting 1) ' + str(live_searcher_count)) 
     
     # catastrophic error 
     if live_searcher_count is 0:
@@ -58,10 +55,8 @@ def neopolitan(searcher_locations, map):
 
     # we assume layers are split up by x direction. modularize in future.
     map_height = map.shape[1]
-    print('map_height is (expecting 85) ' + str(map_height)) 
 
     layer_width = map.shape[0] / live_searcher_count
-    print('layer_width is (expecting 158) ' + str(layer_width)) 
     layers_total = live_searcher_count
     layers_used = 0
 
@@ -75,8 +70,6 @@ def neopolitan(searcher_locations, map):
         layers_used += 1
     
     free_spaces = np.argwhere(map == FREE_SPACE_IN_MAP_NUMBER)
-    print('free_spaces')
-    print(free_spaces)
     
     # only go to target if feasible
     for neopolitan_ideal in neopolitan_ideals:
@@ -88,11 +81,35 @@ def neopolitan(searcher_locations, map):
         # if searcher is targetting a location that isn't reachable, then find nearest neighbor that isn't problematic
         if map[neopolitan_ideal[0], neopolitan_ideal[1]] in [UNKNOWN_SPACE_IN_MAP_NUMBER, OCCUPIED_SPACE_IN_MAP_NUMBER, ROBOT_IN_MAP_NUMBER]:
             # closest node algorithm as per https://codereview.stackexchange.com/questions/28207/finding-the-closest-point-to-a-list-of-points
+            node = neopolitan_ideal
             nodes = np.asarray(free_spaces)
-            deltas = nodes - map[neopolitan_ideal[0], neopolitan_ideal[1]]
-            dist_2 = np.einsum('ij,ij->i', deltas, deltas)
-            print('closest ')
-            patrolling_goal_locations.append((np.argmin(dist_2)[0],np.argmin(dist_2)[1]))
+            # dist_2 = np.sum((nodes - node)**2, axis=1)
+            # closest_index = distance.cdist([node], nodes).argmin()
+            closest_indices = distance.cdist([node], nodes).sort(reverse=True)
+            for closest_index in closest_indices:
+                clean = True
+                # check 7
+                width, height = 8, 8
+                for idx in range(closest_index[0] - int(width/2), closest_index[0] + int(width/2)):
+                    if not clean:
+                        break
+                    for idy in range(closest_index[1] - int(height/2), closest_index[1] + int(height/2)):
+                        if map[closest_index[0] + idx, closest_index[1] + idy] in [UNKNOWN_SPACE_IN_MAP_NUMBER, OCCUPIED_SPACE_IN_MAP_NUMBER, ROBOT_IN_MAP_NUMBER]:
+                            clean = False
+                            break
+
+                if clean:
+                    patrolling_goal_locations.append((nodes[closest_index][0], nodes[closest_index][1]))
+                    break        
+            print('NEOPOLITAN CLOSEST: ')
+            # print(room_frame_to_robot_frame((nodes[closest_index][0], nodes[closest_index][1])))
+            # patrolling_goal_locations.append((nodes[closest_index][0], nodes[closest_index][1]))
+
+        # else, searcher can go to neopolitan ideal because the space is free
+        else:
+            print("NEOPOLITAN IDEAL:")
+            print(room_frame_to_robot_frame(neopolitan_ideal))
+            patrolling_goal_locations.append(neopolitan_ideal)
 
     return [room_frame_to_robot_frame(patrolling_goal_location) for patrolling_goal_location in patrolling_goal_locations]
 
@@ -118,7 +135,6 @@ def get_current_searcher_locations(SEARCHER_CONFIGS):
         try:
             topic_response = rospy.wait_for_message(SEARCHER_CONFIGS[i]['topic'] + '/mobile_base/odom', Odometry, timeout=1) 
             searcher_locations[i] = robot_frame_to_room_frame((topic_response.pose.pose.position.x, topic_response.pose.pose.position.y))
-            print(searcher_locations[i])
         
         # If an agent is not publishing their odometry, just continue
         # This controls for case if a robot dies. Algorithm should proceed.
