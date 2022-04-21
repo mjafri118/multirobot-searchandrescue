@@ -12,19 +12,19 @@ import argparse
 SEARCHER_CONFIGS = [
     {
         "name": 'searcher1',
-        "topic": 'locobot4'
+        "topic": 'locobot3'
     },
     {
         "name": 'searcher2',
-        "topic": 'locobot2'
+        "topic": 'locobot4'
     },
     {
         "name": 'searcher3',
-        "topic": 'locobot3'
+        "topic": 'locobot5'
     }
 ]
 
-TARGET_NODE_IP = '192.168.1.120'
+TARGET_NODE_IP = '192.168.1.30'
 
 class SearcherFSM:
     def __init__(self, robot_index):
@@ -57,9 +57,11 @@ class SearcherFSM:
         self.other_searcher2_target_node_sensed = node_sensed
 
     def cb1_aoa_strength_update(self, data):
+        print('SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
         self.other_searcher1_aoa_strength = data
     
     def cb2_aoa_strength_update(self, data):
+        print('SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
         self.other_searcher2_aoa_strength = data
 
     def isDemoted(self):
@@ -91,6 +93,7 @@ class SearcherFSM:
                 # Perform normal state task, be sure to publish aoa data to the other robots
                 # AOA angles should be in global frame, not robot frames
                 self.S.update_aoa_reading()
+                print(self.S.aoa_strength)
 
                 # Exit conditions
                 if self.S.aoa_strength > self.other_searcher1_aoa_strength and self.S.aoa_strength > self.other_searcher2_aoa_strength:

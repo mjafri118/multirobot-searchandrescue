@@ -32,6 +32,8 @@ class Searcher:
         self.is_target_sensed_pub = rospy.Publisher("/"+self.topic+"/target_node_sensed", Bool, queue_size=1)
         self.goal_waypoint_pub = rospy.Publisher("/"+self.topic+"/goal_waypoint", Odometry, queue_size=1)
         self.AOA_pub = rospy.Publisher("/"+self.topic+"/aoa_strength", Float32, queue_size=1)
+        # self.vel_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
+        self.request_aoa = rospy.Publisher('/run_test_2',Bool,latch=True, queue_size=1)
 
     def get_map(self):
         return map_to_room_frame(self.topic)
@@ -114,20 +116,26 @@ class Searcher:
         # this will require the robot to be fully stopped, and rotate itself. 
         # self.stop_robot()
         # TODO: actually update AOA reading
-        print('Reading AOA!')
+        # print('Reading AOA!')
         # Make sure angle is relative to 0 deg in environment, not relative to robot heading
         # this will require the robot to be fully stopped, and rotate itself. 
-        rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
+        print("UPDATING AOA READING")
+        self.request_aoa.publish(True)
+        aoa_array = rospy.wait_for_message('/wsr_aoa_topic', wsr_aoa_array)
+        print('AOA ARRAY')
+        print(aoa_array)
         # # rospy.init_node('wsr_py_sub_node', anonymous=True)
-        # self.aoa_angle = 15 #replace with actual AOA angle relative to world frame, not robot heading. Use self.get_location to find robot's pose
-        # self.aoa_strength = 1 #replace with actual AOA strength
+        self.aoa_angle = 90 #replace with actual AOA angle relative to world frame, not robot heading. Use self.get_location to find robot's pose
+        self.aoa_strength = 1 #replace with actual AOA strength
         
         # # Publish AOA_strength- MUST HAVE
-        # self.AOA_pub.pub(self.aoa_strength) # This publishes the AOA to the other robots
+        self.AOA_pub.publish(self.aoa_strength) # This publishes the AOA to the other robots
     
     # NOT COMPLETED
     def wsr_cb(self, msg):
         print("######################### Got message ######################")
+        print('msg')
+        print(msg)
         
         for tx in msg.aoa_array:
             print("=========== ID: "+ tx.id +" =============")

@@ -17,22 +17,29 @@
 
 # WSR AND SLAM FOR LOCOBOT5
 
+Step 0
+- roscore
+
 # Step 1 PC:
 
 - roslaunch wsr_toolbox_cpp wsr_pub.launch config_fn:=${HOME}/Harvard_CS286/cs286_mini_hack_2/cs286_config_live.json ws_name:=cs286_hack_ws d_type:=odom
 
 # Step 2 PC:
 
-- python ~/Harvard_CS286/cs286_mini_hack_2/scripts/online_data_test2.py --robot_username all-locobot5 --robot_ip 192.168.1.5 --tx_username all-up-tx10 --tx_ip 192.168.1.30 --packet_len 65 --ts 5
+- python ~/Harvard_CS286/cs286_mini_hack_2/scripts/online_data_test2.py --robot_username all-locobot3 --robot_ip 192.168.1.13 --tx_username all-up-tx10 --tx_ip 192.168.1.30 --packet_len 65 --ts 5
 
 # Step 3 ROBOT:
 
-- roslaunch interbotix_xslocobot_control xslocobot_python.launch robot_model:=locobot_px100 use_nav:=true use_lidar:=true rtabmap_args:=-d robot_name:=locobot5
+- roslaunch interbotix_xslocobot_control xslocobot_python.launch robot_model:=locobot_px100 use_nav:=true use_lidar:=true rtabmap_args:=-d robot_name:=locobot3
 
 # Step 4 ROBOT:
 
-- python ~/Harvard_CS286/cs286_mini_hack_2/scripts/collect_robot_displacement.py --position_topic /locobot5/mobile_base/odom --velocity_topic /locobot5/mobile_base/commands/velocity --motion curved
+- python ~/Harvard_CS286/cs286_mini_hack_2/scripts/collect_robot_displacement.py --position_topic /locobot3/mobile_base/odom --velocity_topic /locobot3/mobile_base/commands/velocity --motion curved
 
 # Step 5 PC:
 
-- rostopic pub --once /run_test_2 std_msgs/Bool "data: true"
+- rostopic pub --once /run_test_2 std_msgs/Bool "data: true" (NO LONGER NEEDED. IMPLEMENTED IN LISTENER GET AOA CODE.)
+
+OPTIONALLY: TRYING TO RUN ON PC
+- roslaunch wsr_toolbox_cpp wsr_check_csi.launch config_fn:=${HOME}/Harvard_CS286/cs286_mini_hack_2/cs286_config_live.json ws_name:=cs286_hack_ws
+
