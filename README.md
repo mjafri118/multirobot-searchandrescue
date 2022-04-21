@@ -6,6 +6,7 @@
 - roslaunch interbotix_xslocobot_control xslocobot_python.launch robot_model:=locobot_px100 use_nav:=true use_lidar:=true rtabmap_args:=-d robot_name:=locobot3
 
 # ON PC:
+- roscore
 
 - python waypoint.py --robot_name locobot3
 

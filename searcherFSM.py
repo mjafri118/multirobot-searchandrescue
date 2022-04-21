@@ -12,7 +12,7 @@ import argparse
 SEARCHER_CONFIGS = [
     {
         "name": 'searcher1',
-        "topic": 'locobot'
+        "topic": 'locobot4'
     },
     {
         "name": 'searcher2',
@@ -24,18 +24,16 @@ SEARCHER_CONFIGS = [
     }
 ]
 
-#CURRENT_SEARCHER_IDX = 0
-
-TARGET_NODE_IP = '192.168.1.30'
+TARGET_NODE_IP = '192.168.1.120'
 
 class SearcherFSM:
     def __init__(self, robot_index):
-        CURRENT_SEARCHER_IDX = robot_index
-        self.S = Searcher(SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX]['name'], SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX]['topic'], TARGET_NODE_IP)
+        self.CURRENT_SEARCHER_IDX = robot_index
+        self.S = Searcher(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['name'], SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'], TARGET_NODE_IP)
 
         # setup callback subscribers to other searchers' is_target_sensed
-        other_searcher_1_config = SEARCHER_CONFIGS[(CURRENT_SEARCHER_IDX + 1) % 3]
-        other_searcher_2_config =  SEARCHER_CONFIGS[(CURRENT_SEARCHER_IDX + 2) % 3]
+        other_searcher_1_config = SEARCHER_CONFIGS[(self.CURRENT_SEARCHER_IDX + 1) % 3]
+        other_searcher_2_config =  SEARCHER_CONFIGS[(self.CURRENT_SEARCHER_IDX + 2) % 3]
         rospy.Subscriber(other_searcher_1_config['topic'] + "/target_node_sensed", Bool, self.cb1_target_node_sensed)
         rospy.Subscriber(other_searcher_2_config['topic'] + "/target_node_sensed", Bool, self.cb2_target_node_sensed)
 
@@ -80,8 +78,10 @@ class SearcherFSM:
                 # Get the locations that robots should go to
                 # Task 2: move robot to location via move_robot_to_waypoint()
                 if not self.S.is_moving():
-                    patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX)
+                    patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
+                else:
+                    print("In patrolling. NOT MOVING. ")
 
                 # Exit conditions
                 if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
