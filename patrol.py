@@ -3,7 +3,7 @@ import rospy
 from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
 import numpy as np
-from map_to_room_frame import map_to_room_frame
+from map_to_room_frame import map_to_room_frame, add_barrier_bumper_to_map
 from scipy.spatial import distance  
 
 drop_point_offset_x = 0.0
@@ -17,14 +17,14 @@ OCCUPIED_SPACE_IN_MAP_NUMBER = 100
 def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
     # Decides best location for each searcher to go to
     # Note: this will be called continuously. Searchers will likely not reach destination before next call
-    # This is a la self driving cars in path planning + constant adjustment (P controller)
+    # This is a la self driving cars in path planning + constant adjustment (Position controller)
 
     # get locations
     searcher_locations = get_current_searcher_locations(SEARCHER_CONFIGS)
     
     # GET MAP DATA
     # 158 x  by 85 y
-    map = map_to_room_frame(SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX]['topic'])
+    map = add_barrier_bumper_to_map(map_to_room_frame(SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX]['topic']))
     # generate random choices. 
     # for idx in range(158):
     #     for idy in range(85):
