@@ -8,6 +8,11 @@ from map_to_room_frame import map_to_room_frame
 drop_point_offset_x = 0.0
 drop_point_offset_y = 0.0
 
+ROBOT_IN_MAP_NUMBER = 7
+FREE_SPACE_IN_MAP_NUMBER = 0
+UNKNOWN_SPACE_IN_MAP_NUMBER = -1
+OCCUPIED_SPACE_IN_MAP_NUMBER = 100
+
 def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
     # Decides best location for each searcher to go to
     # Note: this will be called continuously. Searchers will likely not reach destination before next call
@@ -48,7 +53,8 @@ def neopolitan(searcher_locations, map):
         print("Trying to compute coverage algorithm with no searchers online!")
         return
     
-    patrolling_goal_locations = [(-1,-1)] * len(searcher_locations) 
+    neopolitan_ideals = [(-1,-1)] * len(searcher_locations) 
+    patrolling_goal_locations = []
 
     # we assume layers are split up by x direction. modularize in future.
     map_height = map.shape[1]
@@ -64,10 +70,31 @@ def neopolitan(searcher_locations, map):
         if searcher_locations[searcher_idx] == (-1,-1):
             continue
 
-        patrolling_goal_locations[searcher_idx] = room_frame_to_robot_frame((layers_used * layer_width + layer_width / 2, map_height/2))
+        # neopolitan_ideals[searcher_idx] = room_frame_to_robot_frame((layers_used * layer_width + layer_width / 2, map_height/2))
+        neopolitan_ideals[searcher_idx] = (layers_used * layer_width + layer_width / 2, map_height/2)
         layers_used += 1
+    
+    free_spaces = np.argwhere(map == FREE_SPACE_IN_MAP_NUMBER)
+    print('free_spaces')
+    print(free_spaces)
+    
+    # only go to target if feasible
+    for neopolitan_ideal in neopolitan_ideals:
+        # if searcher isn't going to take commands, don't give them any
+        if neopolitan_ideal == (-1,-1):
+            patrolling_goal_locations.append((-1,-1))
+            continue
+            
+        # if searcher is targetting a location that isn't reachable, then find nearest neighbor that isn't problematic
+        if map[neopolitan_ideal[0], neopolitan_ideal[1]] in [UNKNOWN_SPACE_IN_MAP_NUMBER, OCCUPIED_SPACE_IN_MAP_NUMBER, ROBOT_IN_MAP_NUMBER]:
+            # closest node algorithm as per https://codereview.stackexchange.com/questions/28207/finding-the-closest-point-to-a-list-of-points
+            nodes = np.asarray(free_spaces)
+            deltas = nodes - map[neopolitan_ideal[0], neopolitan_ideal[1]]
+            dist_2 = np.einsum('ij,ij->i', deltas, deltas)
+            print('closest ')
+            patrolling_goal_locations.append((np.argmin(dist_2)[0],np.argmin(dist_2)[1]))
 
-    return patrolling_goal_locations
+    return [room_frame_to_robot_frame(patrolling_goal_location) for patrolling_goal_location in patrolling_goal_locations]
 
 # optimal coverage location is truly just where it currently is. 
 def dontMove(searcher_locations, map):
