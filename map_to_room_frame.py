@@ -55,3 +55,21 @@ def map_to_room_frame(topic):
                 smaller_map[small_column,small_row] = data[index]
                 iter+=1
     return smaller_map
+
+def add_barrier_bumper_to_map(map):
+    ROBOT_RADIUS = 4 # 8 cells across is a reasonable buffer
+    width = np.shape(map)[0]
+    height = np.shape(map)[1]
+
+    for idx in range(width):
+        for idy in range(height):
+            if map[idx,idy] == 100:
+                for neighbor_x in range(idx-ROBOT_RADIUS,idx+ROBOT_RADIUS):
+                    for neighbor_y in range(idy-ROBOT_RADIUS,idy+ROBOT_RADIUS):
+                        if map[neighbor_x,neighbor_y] != 100:
+                            map[neighbor_x,neighbor_y] = 50
+    for idx in range(width):
+        for idy in range(height):
+            if map[idx,idy] == 50:
+                map[idx,idy] = 100
+    return map
