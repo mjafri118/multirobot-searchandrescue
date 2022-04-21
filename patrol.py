@@ -3,7 +3,7 @@ import rospy
 from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
 import numpy as np
-# import random
+from map_to_room_frame import map_to_room_frame
 
 drop_point_offset_x = 0.0
 drop_point_offset_y = 0.0
@@ -17,9 +17,9 @@ def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
     searcher_locations = get_current_searcher_locations(SEARCHER_CONFIGS)
     
     # GET MAP DATA
-    # TODO: IT IS FAKE RN 
     # 158 x  by 85 y
-    map = np.zeros((158, 85))
+    map = map_to_room_frame(SEARCHER_CONFIGS[CURRENT_SEARCHER_IDX]['topic'])
+    print(map)
     # generate random choices. 
     # for idx in range(158):
     #     for idy in range(85):
