@@ -32,7 +32,7 @@ class Searcher:
         self.is_target_sensed_pub = rospy.Publisher("/"+self.topic+"/target_node_sensed", Bool, queue_size=1)
         self.goal_waypoint_pub = rospy.Publisher("/"+self.topic+"/goal_waypoint", Odometry, queue_size=1)
         self.AOA_pub = rospy.Publisher("/"+self.topic+"/aoa_strength", Float32, queue_size=1)
-        # self.vel_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
+        self.stop_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1)
         self.request_aoa = rospy.Publisher('/run_test_2',Bool,latch=True, queue_size=1)
 
     def get_map(self):
@@ -71,7 +71,7 @@ class Searcher:
 
             #rospy.init_node('wsr_py_sub_node', anonymous=True)
             self.aoa_angle = tx.aoa_azimuth[0]
-            self.aoa_strength = tx.profile_variance
+            self.aoa_strength = 1-tx.profile_variance # we will choose the highest
         
         # Convert AOA_angle to world frame
         self.aoa_angle = (self.aoa_angle + self.get_location[2]) % 360
@@ -79,31 +79,15 @@ class Searcher:
             self.aoa_angle = -(360.0 - self.aoa_angle)
         elif self.aoa_angle < -180.0 and self.aoa_angle >= -360.0:
             self.aoa_angle = (360.0 + self.aoa_angle)
-        self.aoa_angle = 90
         # Publish AOA_strength- MUST HAVE
         self.AOA_pub.publish(self.aoa_strength) # This publishes the AOA to the other robots
-    
-    # NOT COMPLETED
-    def wsr_cb(self, msg):
-        print("######################### Got message ######################")
-        print('msg')
-        print(msg)
-        
-        for tx in msg.aoa_array:
-            print("=========== ID: "+ tx.id +" =============")
-            print("TOP N AOA azimuth peak: "+ str(tx.aoa_azimuth))
-            print("TOp N AOA elevation peak: "+ str(tx.aoa_elevation))
-            print("Profile variance: "+ str(tx.profile_variance))
-            self.move_direction = tx.aoa_azimuth[0]
-            self.gotAOA = True
-            print("Got new AOA")
 
     def stop_robot(self):
         # stops robot from moving
         move_cmd = Twist()
         move_cmd.linear.x = 0.0
         move_cmd.angular.z = 0.0
-        self.vel_pub.publish(move_cmd)
+        self.stop_pub.publish(move_cmd)
         return
     
     def obstacle_detected(self):
