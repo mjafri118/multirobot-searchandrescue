@@ -35,9 +35,11 @@ class Searcher:
         self.stop_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1)
         self.request_aoa = rospy.Publisher('/run_test_2',Bool,latch=True, queue_size=1)
 
+    # Need to prove that this works
     def get_map(self):
         return map_to_room_frame(self.topic)
-        
+    
+    # Need to prove that this works
     def filter_map(self):
         return add_barrier_bumper_to_map(self.get_map())
  
@@ -57,9 +59,9 @@ class Searcher:
         self.is_target_sensed_pub.publish(target_sensed)
         return target_sensed
     
-    # NOT COMPLETED (random data)
+    # NOT COMPLETED
     def update_aoa_reading(self):
-        # Test this feature, may need to remove self.stop(robot)
+        # Test this feature, talk to Caleb about anything before changing it
         self.stop_robot()
         print("UPDATING AOA READING")
         self.request_aoa.publish(True)
@@ -68,12 +70,10 @@ class Searcher:
             print("ID: " + tx.id)
             print("Angle: " + str(tx.aoa_azimuth[0]))
             print("Variance: " + str(tx.profile_variance))
-
-            #rospy.init_node('wsr_py_sub_node', anonymous=True)
             self.aoa_angle = tx.aoa_azimuth[0]
             self.aoa_strength = 1-tx.profile_variance # we will choose the highest
         
-        # Convert AOA_angle to world frame
+        # Convert AOA_angle to world frame- MUST HAVE
         self.aoa_angle = (self.aoa_angle + self.get_location[2]) % 360
         if self.aoa_angle > 180.0 and self.aoa_angle <= 360.0:
             self.aoa_angle = -(360.0 - self.aoa_angle)
@@ -103,10 +103,9 @@ class Searcher:
         scan = rospy.wait_for_message(self.topic + '/scan', LaserScan)
         scan_filter = []
        
-        samples = len(scan.ranges)  # The number of samples is defined in 
-                                    # turtlebot3_<model>.gazebo.xacro file,
-                                    # the default is 360.
-        samples_view = 120          # 1 <= samples_view <= samples CHANGED FROM 1 TO 180 BY CALEB MOORE
+        samples = len(scan.ranges)
+
+        samples_view = 120
         
         if samples_view > samples:
             samples_view = samples
@@ -131,7 +130,6 @@ class Searcher:
 
     def move_robot_in_direction(self,linear=True,positive=True):
         # note: only making small steps, the FSM will check for obstacles
-        # /locobot/mobile_base/commands/velocity geometry_msgs/Twist
 
         STEP_SIZE_LINEAR = 0.3 # will move these many m/s at a time linearly
         STEP_SIZE_ANGULAR = 0.6 # will move these many rad/s at a time
@@ -153,13 +151,13 @@ class Searcher:
     def move_robot_to_waypoint(self, waypoint):
         # currently requires waypoint.py to be running on each robot
         # give a discrete (x,y,theta) location for robot to travel to with obstacle avoidance
-        #  this should just send a publish, i.e. do not make this function wait until reaching the waypoint before completion
+        # function prefers input of (x,y,theta), but will accept (x,y) and send the robot to (x,y,0)
 
         goal_cmd = Odometry()
         goal_cmd.pose.pose.position.x = waypoint[0]
         goal_cmd.pose.pose.position.y = waypoint[1]
         if len(waypoint) == 2:
-            goal_cmd.pose.pose.position.z = 0.0
+            goal_cmd.pose.pose.position.z = 0.0 # May need to be smarter with this choice
         else:
             goal_cmd.pose.pose.position.z = waypoint[2]
         self.goal_waypoint_pub.publish(goal_cmd)
