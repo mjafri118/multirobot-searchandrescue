@@ -59,22 +59,19 @@ class Searcher:
     
     # NOT COMPLETED (random data)
     def update_aoa_reading(self):
-        # TODO: actually update AOA reading
-        # Make sure angle is relative to 0 deg in environment, not relative to robot heading
-        # this will require the robot to be fully stopped, and rotate itself. 
-        # self.stop_robot()
-        # TODO: actually update AOA reading
-        # print('Reading AOA!')
-        # Make sure angle is relative to 0 deg in environment, not relative to robot heading
-        # this will require the robot to be fully stopped, and rotate itself. 
+        # Test this feature, may need to remove self.stop(robot)
+        self.stop_robot()
         print("UPDATING AOA READING")
         self.request_aoa.publish(True)
         aoa_array = rospy.wait_for_message('/wsr_aoa_topic', wsr_aoa_array)
-        print('AOA ARRAY')
-        print(aoa_array)
-        # # rospy.init_node('wsr_py_sub_node', anonymous=True)
-        self.aoa_angle = 90 #replace with actual AOA angle relative to world frame, not robot heading. Use self.get_location to find robot's pose
-        self.aoa_strength = 1 #replace with actual AOA strength
+        for tx in aoa_array:
+            print("ID: " + tx.id)
+            print("Angle: " + str(tx.aoa_azimuth[0]))
+            print("Variance: " + str(tx.profile_variance))
+
+            #rospy.init_node('wsr_py_sub_node', anonymous=True)
+            self.aoa_angle = tx.aoa_azimuth[0]
+            self.aoa_strength = tx.profile_variance
         
         # Convert AOA_angle to world frame
         self.aoa_angle = (self.aoa_angle + self.get_location[2]) % 360
