@@ -67,9 +67,9 @@ def neopolitan(searcher_locations, map):
             continue
 
         # neopolitan_ideals[searcher_idx] = room_frame_to_robot_frame((layers_used * layer_width + layer_width / 2, map_height/2))
-        neopolitan_ideals[searcher_idx] = (layers_used * layer_width + layer_width / 2, map_height/2)
+        neopolitan_ideals[searcher_idx] = ((layers_used * layer_width) + (layer_width / 2), map_height/2)
         layers_used += 1
-    return neopolitan_ideals
+    #return neopolitan_ideals
     free_spaces = np.argwhere(map == FREE_SPACE_IN_MAP_NUMBER)
     
     # only go to target if feasible
@@ -87,24 +87,10 @@ def neopolitan(searcher_locations, map):
             # dist_2 = np.sum((nodes - node)**2, axis=1)
             # closest_index = distance.cdist([node], nodes).argmin()
             closest_indices = distance.cdist([node], nodes).sort(reverse=True)
-            for closest_index in closest_indices:
-                clean = True
-                # check 7
-                width, height = 8, 8
-                for idx in range(closest_index[0] - int(width/2), closest_index[0] + int(width/2)):
-                    if not clean:
-                        break
-                    for idy in range(closest_index[1] - int(height/2), closest_index[1] + int(height/2)):
-                        if map[closest_index[0] + idx, closest_index[1] + idy] in [UNKNOWN_SPACE_IN_MAP_NUMBER, OCCUPIED_SPACE_IN_MAP_NUMBER, ROBOT_IN_MAP_NUMBER]:
-                            clean = False
-                            break
-
-                if clean:
-                    patrolling_goal_locations.append((nodes[closest_index][0], nodes[closest_index][1]))
-                    break        
+            closest_clean_node = closest_indices[0]
+            patrolling_goal_locations.append((closest_clean_node[0], closest_clean_node[1]))
             print('NEOPOLITAN CLOSEST: ')
-            # print(room_frame_to_robot_frame((nodes[closest_index][0], nodes[closest_index][1])))
-            # patrolling_goal_locations.append((nodes[closest_index][0], nodes[closest_index][1]))
+            print(room_frame_to_robot_frame((closest_clean_node[0], closest_clean_node[1])))
 
         # else, searcher can go to neopolitan ideal because the space is free
         else:

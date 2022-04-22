@@ -58,8 +58,8 @@ def map_to_room_frame(topic):
 
 def add_barrier_bumper_to_map(map):
     ROBOT_RADIUS = 4 # 8 cells across is a reasonable buffer
-    width = np.shape(map)[0]
-    height = np.shape(map)[1]
+    width = map.shape[0]
+    height = map.shape[1]
 
     for idx in range(width):
         for idy in range(height):

@@ -83,7 +83,7 @@ class SearcherFSM:
                     patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
                 else:
-                    print("In patrolling. NOT MOVING. ")
+                    print("In patrolling. MOVING. ")
 
                 # Exit conditions
                 if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
