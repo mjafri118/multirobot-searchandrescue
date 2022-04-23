@@ -86,8 +86,11 @@ def neopolitan(searcher_locations, map):
             nodes = np.asarray(free_spaces)
             # dist_2 = np.sum((nodes - node)**2, axis=1)
             # closest_index = distance.cdist([node], nodes).argmin()
-            closest_indices = distance.cdist([node], nodes).sort(reverse=True)
-            closest_clean_node = closest_indices[0]
+            all_distances = distance.cdist([node], nodes)
+            # Need to get the index of the minimum entry
+            min_index = np.where(all_distances ==np.amin(all_distances))
+            min_index = int(min_index[1])
+            closest_clean_node = nodes[min_index]
             patrolling_goal_locations.append((closest_clean_node[0], closest_clean_node[1]))
             print('NEOPOLITAN CLOSEST: ')
             print(room_frame_to_robot_frame((closest_clean_node[0], closest_clean_node[1])))

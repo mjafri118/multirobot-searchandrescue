@@ -9,6 +9,7 @@ from move_base_msgs.msg import MoveBaseAction , MoveBaseGoal
 from tf.transformations import quaternion_from_euler
 from std_srvs.srv import Empty
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Bool
 from geometry_msgs.msg import Point, Quaternion
 import argparse
 
@@ -19,6 +20,7 @@ class RobotSLAM_Nav:
         self.client = actionlib.SimpleActionClient('/'+robot_name+'/move_base',MoveBaseAction)
         self.timeout = 60 #secs
         self.step_size = 1.0
+        self.reached_goal = rospy.Publisher(robot_name+'/reached_goal',Bool,latch=True, queue_size=1)
         
         #Clear the costmap and rtabmap using rosservice calls.
         print("Resetting rtabmap")
@@ -75,9 +77,10 @@ class RobotSLAM_Nav:
                 self.goal.target_pose.pose.orientation.y = q[1]
                 self.goal.target_pose.pose.orientation.z = q[2]
                 self.goal.target_pose.pose.orientation.w = q[3]
-                print(self.goal)
+
                 rospy.loginfo("Attempting to move to the goal")
                 self.client.send_goal(self.goal)
+                self.reached_goal.publish(False)
                 wait=self.client.wait_for_result(rospy.Duration(self.timeout))
 
                 if not wait:
@@ -86,6 +89,7 @@ class RobotSLAM_Nav:
                     rospy.loginfo("Please provide a new goal position")
                 else:
                     rospy.loginfo("Reached goal successfully")
+                    self.reached_goal.publish(True)
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Get the inputs.')

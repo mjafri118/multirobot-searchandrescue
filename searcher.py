@@ -65,14 +65,16 @@ class Searcher:
         self.stop_robot()
         print("UPDATING AOA READING")
         self.request_aoa.publish(True)
+        print("CHECKPOINT 1 of 3")
         aoa_array = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array) # Wrong, should be wsr_aoa
+        print("CHECKPOINT 2 of 3")
         for tx in aoa_array:
             print("ID: " + tx.id)
             print("Angle: " + str(tx.aoa_azimuth[0]))
             print("Variance: " + str(tx.profile_variance))
             self.aoa_angle = tx.aoa_azimuth[0]
             self.aoa_strength = 1-tx.profile_variance # we will choose the highest
-        
+        print("CHECKPOINT 3 of 3")
         # Convert AOA_angle to world frame- MUST HAVE
         self.aoa_angle = (self.aoa_angle + self.get_location[2]) % 360
         if self.aoa_angle > 180.0 and self.aoa_angle <= 360.0:

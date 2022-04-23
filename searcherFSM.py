@@ -12,24 +12,27 @@ import argparse
 SEARCHER_CONFIGS = [
     {
         "name": 'searcher1',
-        "topic": 'locobot3'
+        "topic": 'locobot3',
+        "target_ip": '192.168.1.29'
     },
     {
         "name": 'searcher2',
-        "topic": 'locobot4'
+        "topic": 'locobot4',
+        "target_ip": '192.168.1.23'
     },
     {
         "name": 'searcher3',
-        "topic": 'locobot5'
+        "topic": 'locobot5',
+        "target_ip": '192.168.1.30'
     }
 ]
 
-TARGET_NODE_IP = '192.168.1.30'
+#TARGET_NODE_IP = '192.168.1.30'
 
 class SearcherFSM:
     def __init__(self, robot_index):
         self.CURRENT_SEARCHER_IDX = robot_index
-        self.S = Searcher(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['name'], SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'], TARGET_NODE_IP)
+        self.S = Searcher(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['name'], SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'], SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['target_ip'])
 
         # setup callback subscribers to other searchers' is_target_sensed
         other_searcher_1_config = SEARCHER_CONFIGS[(self.CURRENT_SEARCHER_IDX + 1) % 3]
@@ -82,12 +85,15 @@ class SearcherFSM:
                 if not self.S.is_moving():
                     patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
+                    print("Not MOVING.")
                 else:
                     print("In patrolling. MOVING. ")
 
                 # Exit conditions
-                if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
-                    next_state = 'listening'
+                reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+                if reached_goal:
+                    if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
+                        next_state = 'listening'
 
             if self.current_state is 'listening':
                 # Perform normal state task, be sure to publish aoa data to the other robots

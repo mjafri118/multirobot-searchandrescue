@@ -66,8 +66,10 @@ def add_barrier_bumper_to_map(map):
             if map[idx,idy] == 100:
                 for neighbor_x in range(idx-ROBOT_RADIUS,idx+ROBOT_RADIUS):
                     for neighbor_y in range(idy-ROBOT_RADIUS,idy+ROBOT_RADIUS):
-                        if map[neighbor_x,neighbor_y] != 100:
-                            map[neighbor_x,neighbor_y] = 50
+                        if neighbor_x < width and neighbor_x >= 0:
+                            if neighbor_y < height and neighbor_y >= 0:
+                                if map[neighbor_x,neighbor_y] != 100:
+                                    map[neighbor_x,neighbor_y] = 50
     for idx in range(width):
         for idy in range(height):
             if map[idx,idy] == 50:
