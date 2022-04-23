@@ -33,7 +33,7 @@ class Searcher:
         self.goal_waypoint_pub = rospy.Publisher("/"+self.topic+"/goal_waypoint", Odometry, queue_size=1)
         self.AOA_pub = rospy.Publisher("/"+self.topic+"/aoa_strength", Float32, queue_size=1)
         self.stop_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1)
-        self.request_aoa = rospy.Publisher('/run_test_2',Bool,latch=True, queue_size=1)
+        self.request_aoa = rospy.Publisher(self.topic+'/run_test_2',Bool,latch=True, queue_size=1)
 
     # Need to prove that this works
     def get_map(self):
@@ -65,7 +65,7 @@ class Searcher:
         self.stop_robot()
         print("UPDATING AOA READING")
         self.request_aoa.publish(True)
-        aoa_array = rospy.wait_for_message('/wsr_aoa_topic', wsr_aoa_array)
+        aoa_array = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array) # Wrong, should be wsr_aoa
         for tx in aoa_array:
             print("ID: " + tx.id)
             print("Angle: " + str(tx.aoa_azimuth[0]))
@@ -181,7 +181,7 @@ class Searcher:
             topic_response.pose.pose.orientation.w)
         return (topic_response.pose.pose.position.x, topic_response.pose.pose.position.y, np.rad2deg(euler_from_quaternion(orientation)[2]))
 
-    
+
 if __name__ == "__main__":
     S = Searcher('searcher1', 'locobot', '192.168.1.30')
     # print(S.is_moving())
