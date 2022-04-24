@@ -1,6 +1,6 @@
-# Terminal command to be run on robot: python searcherFSM.py --robot_index 0
-# Terminal command to be run on robot: python searcherFSM.py --robot_index 1
-# Terminal command to be run on robot: python searcherFSM.py --robot_index 2
+# Terminal command to be run on locobot3: python searcherFSM.py --robot_index 0
+# Terminal command to be run on locobot4: python searcherFSM.py --robot_index 1
+# Terminal command to be run on locobot5: python searcherFSM.py --robot_index 2
 
 from searcher import Searcher
 from patrol import get_patrolling_locations
@@ -82,12 +82,18 @@ class SearcherFSM:
                 # Perform normal state task             
                 # Get the locations that robots should go to
                 # Task 2: move robot to location via move_robot_to_waypoint()
-                if not self.S.is_moving():
-                    patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
+
+                patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
+                # If the robot is not at the patrol location, go there
+                if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > .05 or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > .05:
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
-                    print("Not MOVING.")
-                else:
-                    print("In patrolling. MOVING. ")
+
+                # if not self.S.is_moving():
+                #     patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
+                #     self.S.move_robot_to_waypoint(patrolling_location_goal)
+                #     print("Not MOVING.")
+                # else:
+                #     print("In patrolling. MOVING. ")
 
                 # Exit conditions
                 reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
@@ -117,7 +123,12 @@ class SearcherFSM:
                 
                 # second, linearly move the robot towards the target
                 else:
-                    self.S.move_robot_in_direction(linear=True,positive=True)
+                    #if obstacle, use waypoint script to move around obstacle. Else, move forward
+                    if self.S.obstacle_detected():
+                        # TODO
+                        print("Target is likely behind obstacle")
+                    else:
+                        self.S.move_robot_in_direction(linear=True,positive=True)
 
                 # Exit conditions
                 if self.S.obstacle_detected() or self.isDemoted():

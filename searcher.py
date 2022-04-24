@@ -66,9 +66,9 @@ class Searcher:
         print("UPDATING AOA READING")
         self.request_aoa.publish(True)
         print("CHECKPOINT 1 of 3")
-        aoa_array = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array) # Wrong, should be wsr_aoa
+        aoa_array_msg = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array)
         print("CHECKPOINT 2 of 3")
-        for tx in aoa_array:
+        for tx in aoa_array_msg.aoa_array:
             print("ID: " + tx.id)
             print("Angle: " + str(tx.aoa_azimuth[0]))
             print("Variance: " + str(tx.profile_variance))
