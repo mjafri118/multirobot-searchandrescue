@@ -44,6 +44,7 @@ def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
 def neopolitan(searcher_locations, map):
     live_searcher_count = 0
     for searcher_location in searcher_locations:
+        print(searcher_location)
         live_searcher_count += 1 if searcher_location != (-1,-1) else 0
     
     # catastrophic error 
@@ -124,12 +125,13 @@ def get_current_searcher_locations(SEARCHER_CONFIGS):
 
     for i in range(len(SEARCHER_CONFIGS)):
         try:
-            topic_response = rospy.wait_for_message(SEARCHER_CONFIGS[i]['topic'] + '/mobile_base/odom', Odometry, timeout=1) 
+            topic_response = rospy.wait_for_message(SEARCHER_CONFIGS[i]['topic'] + '/mobile_base/odom', Odometry, timeout=30)
             searcher_locations[i] = robot_frame_to_room_frame((topic_response.pose.pose.position.x, topic_response.pose.pose.position.y))
         
         # If an agent is not publishing their odometry, just continue
         # This controls for case if a robot dies. Algorithm should proceed.
         except rospy.exceptions.ROSException:
+            print("Can't find location for "+ SEARCHER_CONFIGS[i]['topic'])
             searcher_locations[i] = (-1,-1)
     print("Returning robot current searcher locations")
     return searcher_locations

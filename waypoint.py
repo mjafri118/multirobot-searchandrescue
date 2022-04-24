@@ -79,17 +79,19 @@ class RobotSLAM_Nav:
                 self.goal.target_pose.pose.orientation.w = q[3]
 
                 rospy.loginfo("Attempting to move to the goal")
-                self.client.send_goal(self.goal)
                 self.reached_goal.publish(False)
+                self.client.send_goal(self.goal)
                 wait=self.client.wait_for_result(rospy.Duration(self.timeout))
 
                 if not wait:
                     rospy.loginfo("Timed-out after failing to reach the goal.")
                     self.client.cancel_goal()
+                    self.gotGOAL = False
                     rospy.loginfo("Please provide a new goal position")
                 else:
                     rospy.loginfo("Reached goal successfully")
                     self.reached_goal.publish(True)
+                    self.gotGOAL = False
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Get the inputs.')

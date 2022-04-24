@@ -79,13 +79,16 @@ class SearcherFSM:
             next_state = self.current_state # by default, stays within the current state
 
             if self.current_state is 'patrolling':
+                print("In  patrolling")
                 # Perform normal state task             
                 # Get the locations that robots should go to
                 # Task 2: move robot to location via move_robot_to_waypoint()
 
                 patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
                 # If the robot is not at the patrol location, go there
-                if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > .05 or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > .05:
+                if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > .1 or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > .1:
+                    print("actual location: ")
+                    print(self.S.get_location()[0],self.S.get_location()[1])
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
 
                 # if not self.S.is_moving():
