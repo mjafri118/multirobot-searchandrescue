@@ -2,13 +2,15 @@ from nav_msgs.msg import OccupancyGrid
 import numpy as np
 import rospy
 
+ROBOT_RADIUS = 5 # 8 cells across is a reasonable buffer
+
 def map_to_room_frame(topic):
-    print("Mapping to room frame...")
+    # print("Mapping to room frame...")
     drop_point_offset_x = 0.0 # if closer to left wall of room, offset should be positive
     drop_point_offset_y = 0.0 # if closer to back wall of room, offset should be positive
 
     map = rospy.wait_for_message('/'+ topic+'/rtabmap/grid_map', OccupancyGrid)
-    print("Received map")
+    # print("Received map")
     #res = map.info.resolution # m/cell
     width = map.info.width # cells
     height = map.info.height # cells
@@ -46,18 +48,17 @@ def map_to_room_frame(topic):
                 # If the robot is here
                 small_column = iter % testbed_w_cells
                 small_row = int((iter - small_column)/testbed_w_cells)
-                smaller_map[small_column,small_row] = 7 # Value for robot taking up a space
+                smaller_map[small_column,testbed_h_cells - 1 - small_row] = 7 # Value for robot taking up a space
                 iter+=1
 
             elif row >= lower_left_y_grid and row <= upper_right_y_grid and column >= lower_left_x_grid and column <= upper_right_x_grid:
                 small_column = iter % testbed_w_cells
                 small_row = int((iter - small_column)/testbed_w_cells)
-                smaller_map[small_column,small_row] = data[index]
+                smaller_map[small_column,testbed_h_cells - 1 - small_row] = data[index]
                 iter+=1
     return smaller_map
 
 def add_barrier_bumper_to_map(map):
-    ROBOT_RADIUS = 4 # 8 cells across is a reasonable buffer
     width = map.shape[0]
     height = map.shape[1]
 

@@ -17,7 +17,7 @@ FREE_SPACE_IN_MAP_NUMBER = 0
 UNKNOWN_SPACE_IN_MAP_NUMBER = -1
 OCCUPIED_SPACE_IN_MAP_NUMBER = 100
 
-def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
+def get_patrolling_location(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
     # Decides best location for each searcher to go to
     # Note: this will be called continuously. Searchers will likely not reach destination before next call
     # This is a la self driving cars in path planning + constant adjustment (Position controller)
@@ -34,7 +34,6 @@ def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
     #         map[idx,idy] = random.choices(population = [-1,0,25,100], weights= [.65, .25, .1])
 
     # switch out any algorithm here
-    print("Running Neopolitan coverage algorithm")
     patrolling_goal_locations = neopolitan(searcher_locations, map)
     # patrolling_goal_locations = dontMove(searcher_locations, map)
     print('Ideal coverage location: ' + str(patrolling_goal_locations[CURRENT_SEARCHER_IDX]))
@@ -47,7 +46,7 @@ def get_patrolling_locations(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
 def neopolitan(searcher_locations, map):
     live_searcher_count = 0
     for searcher_location in searcher_locations:
-        print(searcher_location)
+        # print(searcher_location)
         live_searcher_count += 1 if searcher_location != (-1,-1) else 0
     
     # catastrophic error 
@@ -82,9 +81,6 @@ def neopolitan(searcher_locations, map):
         if neopolitan_ideal == (-1,-1):
             patrolling_goal_locations.append((-1,-1))
             continue
-
-        print("NEOPOLITAN IDEAL:")
-        print(room_frame_to_robot_frame(neopolitan_ideal))
             
         # if searcher is targetting a location that isn't reachable, then find nearest neighbor that isn't problematic
         if map[neopolitan_ideal[0], neopolitan_ideal[1]] in [UNKNOWN_SPACE_IN_MAP_NUMBER, OCCUPIED_SPACE_IN_MAP_NUMBER, ROBOT_IN_MAP_NUMBER]:
@@ -96,8 +92,8 @@ def neopolitan(searcher_locations, map):
             all_distances = distance.cdist([node], nodes)
             # Need to get the index of the minimum entry
             min_index = np.where(all_distances ==np.amin(all_distances))
-            print(all_distances)
-            print(min_index)
+            # print(all_distances)
+            # print(min_index)
             min_index = int(min_index[1][0])
             closest_clean_node = nodes[min_index]
             patrolling_goal_locations.append((closest_clean_node[0], closest_clean_node[1]))
@@ -140,13 +136,13 @@ def is_ip_online(IP):
 # gets where all available robots are in ROOM FRAME. 
 # note, if the robot is not online, their location is (-1, -1)
 def get_current_searcher_locations(SEARCHER_CONFIGS):
-    print("Getting robot current searcher locations")
+    print("Getting current searcher locations")
     searcher_locations = [(None,None)]* len(SEARCHER_CONFIGS)
 
     for i in range(len(SEARCHER_CONFIGS)):
         try:
             # save wasted timeout time if we cannot ping
-            if is_ip_online(SEARCHER_CONFIGS[i]['target_ip']):
+            if is_ip_online(SEARCHER_CONFIGS[i]['device_ip']):
                 topic_response = rospy.wait_for_message(SEARCHER_CONFIGS[i]['topic'] + '/mobile_base/odom', Odometry, timeout=30)
                 searcher_locations[i] = robot_frame_to_room_frame((topic_response.pose.pose.position.x, topic_response.pose.pose.position.y))
             else: 

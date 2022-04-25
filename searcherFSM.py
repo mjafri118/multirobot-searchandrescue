@@ -3,7 +3,7 @@
 # Terminal command to be run on locobot5: python searcherFSM.py --robot_index 2
 
 from searcher import Searcher
-from patrol import get_patrolling_locations
+from patrol import get_patrolling_location
 import rospy
 from std_msgs.msg import Bool, Float32
 import argparse
@@ -13,17 +13,20 @@ SEARCHER_CONFIGS = [
     {
         "name": 'searcher1',
         "topic": 'locobot3',
-        "target_ip": '192.168.1.29'
+        "target_ip": '192.168.1.29',
+	    "device_ip": '192.168.1.13'
     },
     {
         "name": 'searcher2',
         "topic": 'locobot4',
-        "target_ip": '192.168.1.23'
+        "target_ip": '192.168.1.23',
+	    "device_ip": '192.168.1.14'
     },
     {
         "name": 'searcher3',
         "topic": 'locobot5',
-        "target_ip": '192.168.1.30'
+        "target_ip": '192.168.1.30',
+	    "device_ip": '192.168.1.15'
     }
 ]
 
@@ -52,9 +55,8 @@ class SearcherFSM:
         self.start_game = False
         self.quit_game = False
         
-        self.current_state = 'patrolling'   
-        print("Initialization successful!")    
-        print("First state: " + self.current_state) 
+        self.current_state = 'hunting'   
+        rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Initialization successful!")    
 
         # In case the callbacks below are never invoked, i.e. other searchers are non-functional somehow.
         self.other_searcher1_target_node_sensed = False
@@ -71,24 +73,30 @@ class SearcherFSM:
         self.quit_game = data.data
     
     def cb1_target_node_sensed(self, node_sensed):
+        print("CALLBACK 1: NODE SENSED BELOW: ")
+        print(node_sensed)
         self.other_searcher1_target_node_sensed = node_sensed.data
     
     def cb2_target_node_sensed(self, node_sensed):
+        print("CALLBACK 2: NODE SENSED BELOW: ")
+        print(node_sensed)
         self.other_searcher2_target_node_sensed = node_sensed.data
 
     def cb1_aoa_strength_update(self, data):
-        print('SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
+        print("CB1 AOA STRENGTH BELOW: ")
         print(data)
-        self.other_searcher1_aoa_strength = data
+        # rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + 'SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
+        self.other_searcher1_aoa_strength = data.data
     
     def cb2_aoa_strength_update(self, data):
-        print('SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
+        print("CB2 AOA STRENGTH BELOW: ")
         print(data)
-        self.other_searcher2_aoa_strength = data
+        # rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + 'SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
+        self.other_searcher2_aoa_strength = data.data
 
     def isDemoted(self):
         if (self.S.aoa_strength > self.other_searcher1_aoa_strength) or (self.S.aoa_strength > self.other_searcher2_aoa_strength):
-            print('AGENT IS DEMOTED.')
+            rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + 'AGENT IS DEMOTED.')
             return True
         else:
             return False
@@ -103,23 +111,24 @@ class SearcherFSM:
                 next_state = 'idle'
 
             if self.current_state is 'patrolling':
-                rospy.loginfo("Patrolling...")
+                rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Patrolling...")
 
                 # Get the locations that robots should go to
-                patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
+                patrolling_location_goal = get_patrolling_location(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
+                rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Patrolling location goal: " + str(patrolling_location_goal))
+                rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Current robot location:" + str(self.S.get_location()))
 
                 # Task 2: move robot to location via move_robot_to_waypoint()
                 # If the robot is not at the patrol location, go there
                 if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > WAYPOINT_THRESHOLD[0] or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > WAYPOINT_THRESHOLD[1]:
-                    print("Agent's Location: ", end='')
-                    print(self.S.get_location()[0],self.S.get_location()[1])
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
-                    print("Waypoint Script is Finished.")
+                    rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Waypoint Script is Finished.")
 
                 # Exit conditions
                 reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
 
                 if reached_goal.data:
+                    print("GOAL REACHED, TARGET SENSED IS " + str(self.S.is_target_sensed()))
                     if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
                         next_state = 'listening'
 
@@ -133,21 +142,23 @@ class SearcherFSM:
                     next_state = 'hunting'
             
             if self.current_state is 'hunting':
-                rospy.loginfo("Hunting...")
+                # rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Hunting...")
                 
                 error_threshold = 10 # degrees
                 # first, orient the robot in the proper angle so it is headed at the target
                 deg_to_target = self.S.get_location()[2] - self.S.aoa_angle
 
-                is_oriented_to_node = abs(deg_to_target) > error_threshold
+                is_oriented_to_node = abs(deg_to_target) < error_threshold
                 self.rerouting_hunter = self.rerouting_hunter
                 obstacle_detected = self.S.obstacle_detected()
                 is_demoted = self.isDemoted()
+
                 truthTable = [is_oriented_to_node, self.rerouting_hunter, obstacle_detected, is_demoted]
-                print("is_oriented_to_node: " + is_oriented_to_node + 
-                    " | self.rerouting_hunter: " + self.rerouting_hunter  +
-                    " | obstacle_detected: " + obstacle_detected + 
-                    " | is_demoted: " + is_demoted
+
+                rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "is_oriented_to_node: " + str(is_oriented_to_node) + 
+                    " | self.rerouting_hunter: " + str(self.rerouting_hunter)  +
+                    " | obstacle_detected: " + str(obstacle_detected) + 
+                    " | is_demoted: " + str(is_demoted)
                 )
 
                 # no matter what, if another agent has a better shot at catching the target, then stop and defer
@@ -156,57 +167,24 @@ class SearcherFSM:
                     next_state = 'listening'
                     continue
 
-                if truthTable is [1, 0, 0, 0]:
+                if truthTable == [1, 0, 0, 0]:
                     self.S.move_robot_in_direction(linear=True,positive=True)
                     continue
                 
-                if truthTable is [1,1,0,0] or truthTable is [0,1,0,0]:
+                if truthTable == [1,1,0,0] or truthTable == [0,1,0,0]:
                     self.rerouting_hunter = False
                     self.S.move_robot_in_direction(linear=True,positive=True)
                 
-                if truthTable is [1,0,1,0] or truthTable is [0,0,1,0]:
+                if truthTable == [1,0,1,0] or truthTable == [0,0,1,0]:
                     self.S.stop_robot()
+                    next_state = 'listening'
                     self.rerouting_hunter = True
                 
-                if truthTable is [0,0,0,0]:
+                if truthTable == [0,0,0,0]:
                     self.S.move_robot_in_direction(linear=False, positive=deg_to_target < 0)
                 
-                if truthTable is [0,1,1,0] or truthTable is [1,1,0]:
-                    self.S.move_robot_in_direction(linear=False, positive=deg_to_target < 0)
-
-                ### END NEW LOGIC
-
-                # if self.rerouting_hunter: 
-                #     # move angle of robot slightly
-                
-                #     if not self.S.obstacle_detected():
-                #         self.S.move_robot_in_direction(linear=True,positive=True)
-                # # robotOrientedToNodeWithinThreshold
-                # # self.rerouting_hunter
-                # # obstacle_detected
-                # # is demoted
-
-                # # first, orient the robot in the proper angle so it is headed at the target
-                # deg_to_target = self.S.get_location()[2] - self.S.aoa_angle
-                # print("Degrees to target: " + str(deg_to_target))
-
-                # # if robot is not oriented within threshold
-                # if abs(deg_to_target) > error_threshold:
-                #     self.S.move_robot_in_direction(linear=False, positive=deg_to_target < 0)
-                
-                # # second, linearly move the robot towards the target
-                # else:
-                #     #if obstacle, use waypoint script to move around obstacle. Else, move forward
-                #     if self.S.obstacle_detected():
-                #         self.rerouting_hunter = True
-                #         continue
-                #         print("Target is likely behind obstacle")
-                #     else:
-                #         self.S.move_robot_in_direction(linear=True,positive=True)
-
-                # # Exit conditions
-                # if self.S.obstacle_detected() or self.isDemoted():
-                #     next_state = 'listening'
+                if truthTable == [0,1,1,0] or truthTable == [1,1,1,0]:
+                    self.S.move_robot_in_direction(linear=False, positive=True)
             
             if self.current_state is 'idle':
                 if self.start_game:
@@ -214,7 +192,7 @@ class SearcherFSM:
                     self.start_game = False
             
             if(self.current_state != next_state):
-                print("------ Changing state to: " + next_state + ' ------')                    
+                rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "------ Changing state to: " + next_state + ' ------')                    
 
             self.current_state = next_state
 

@@ -16,7 +16,7 @@ import argparse
 
 class RobotSLAM_Nav:
     def __init__(self, robot_name):
-        rospy.init_node("move_base_tester")
+        rospy.init_node("move_base_tester", anonymous=True)
         self.client = actionlib.SimpleActionClient('/'+robot_name+'/move_base',MoveBaseAction)
         self.timeout = 60 #secs
         self.step_size = 1.0

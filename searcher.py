@@ -63,19 +63,20 @@ class Searcher:
     def update_aoa_reading(self):
         # Test this feature, talk to Caleb about anything before changing it
         self.stop_robot()
-        print("UPDATING AOA READING")
+        rospy.loginfo(self.topic + ": " + "UPDATING AOA READING")
         current_angle = self.get_location()[2]
         self.request_aoa.publish(True)
-        print("CHECKPOINT 1 of 3")
+        rospy.loginfo(self.topic + ": " + "CHECKPOINT 1 of 3")
         aoa_array_msg = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array)
-        print("CHECKPOINT 2 of 3")
+        rospy.loginfo(self.topic + ": " + "CHECKPOINT 2 of 3")
         for tx in aoa_array_msg.aoa_array:
-            print("ID: " + tx.id)
-            print("Angle: " + str(tx.aoa_azimuth[0]))
-            print("Variance: " + str(tx.profile_variance))
+            rospy.loginfo(self.topic + ": " + "ID: " + tx.id)
+            rospy.loginfo(self.topic + ": " + "Angle: " + str(tx.aoa_azimuth[0]))
+            rospy.loginfo(self.topic + ": " + "Variance: " + str(tx.profile_variance))
             self.aoa_angle = tx.aoa_azimuth[0]
             self.aoa_strength = tx.profile_variance # we will choose the highest
-        print("CHECKPOINT 3 of 3")
+            print("aoa_strength:" + str(self.aoa_strength))
+        rospy.loginfo(self.topic + ": " + "CHECKPOINT 3 of 3")
         # Convert AOA_angle to world frame- MUST HAVE
         self.aoa_angle = (self.aoa_angle + current_angle)
         if self.aoa_angle > 180.0 and self.aoa_angle <= 360.0:
@@ -99,7 +100,7 @@ class Searcher:
 
         if _distance < SAFE_STOP_DISTANCE and _distance > 0:
             self.stop_robot()
-            print("OBSTACLE DETECTED. ROBO")
+            # rospy.loginfo(self.topic + ": " + "OBSTACLE DETECTED. ROBO")
             return True
         return False
 
@@ -136,7 +137,7 @@ class Searcher:
         # note: only making small steps, the FSM will check for obstacles
 
         STEP_SIZE_LINEAR = 0.3 # will move these many m/s at a time linearly
-        STEP_SIZE_ANGULAR = 0.6 # will move these many rad/s at a time
+        STEP_SIZE_ANGULAR = 0.9 # will move these many rad/s at a time
 
         move_cmd = Twist()
         # Fill in message details
@@ -188,8 +189,8 @@ class Searcher:
 
 if __name__ == "__main__":
     S = Searcher('searcher1', 'locobot5', '192.168.1.30')
-    # print(S.is_moving())
+    # rospy.loginfo(self.topic + ": " + S.is_moving())
     while True:
         print(S.get_location())
-    # print('Is target sensed: ' + 'yes' if S.is_target_sensed() else 'no')
+    # rospy.loginfo(self.topic + ": " + 'Is target sensed: ' + 'yes' if S.is_target_sensed() else 'no')
     # S.move_robot_in_direction(linear=True, positive=True)
