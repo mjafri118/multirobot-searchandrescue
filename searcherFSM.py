@@ -55,7 +55,7 @@ class SearcherFSM:
         self.start_game = False
         self.quit_game = False
         
-        self.current_state = 'hunting'   
+        self.current_state = 'patrolling'   
         rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Initialization successful!")    
 
         # In case the callbacks below are never invoked, i.e. other searchers are non-functional somehow.
