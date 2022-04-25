@@ -5,6 +5,9 @@ from tf.transformations import euler_from_quaternion
 import numpy as np
 from map_to_room_frame import map_to_room_frame, add_barrier_bumper_to_map
 from scipy.spatial import distance  
+import platform    # For getting the operating system name
+import subprocess  # For executing a shell command
+
 
 drop_point_offset_x = 0.0
 drop_point_offset_y = 0.0
@@ -79,6 +82,9 @@ def neopolitan(searcher_locations, map):
         if neopolitan_ideal == (-1,-1):
             patrolling_goal_locations.append((-1,-1))
             continue
+
+        print("NEOPOLITAN IDEAL:")
+        print(room_frame_to_robot_frame(neopolitan_ideal))
             
         # if searcher is targetting a location that isn't reachable, then find nearest neighbor that isn't problematic
         if map[neopolitan_ideal[0], neopolitan_ideal[1]] in [UNKNOWN_SPACE_IN_MAP_NUMBER, OCCUPIED_SPACE_IN_MAP_NUMBER, ROBOT_IN_MAP_NUMBER]:
@@ -90,16 +96,18 @@ def neopolitan(searcher_locations, map):
             all_distances = distance.cdist([node], nodes)
             # Need to get the index of the minimum entry
             min_index = np.where(all_distances ==np.amin(all_distances))
-            min_index = int(min_index[1])
+            print(all_distances)
+            print(min_index)
+            min_index = int(min_index[1][0])
             closest_clean_node = nodes[min_index]
             patrolling_goal_locations.append((closest_clean_node[0], closest_clean_node[1]))
-            print('NEOPOLITAN CLOSEST: ')
+            
+            print('NEOPOLITAN IDEAL IS NOT ACHIEVABLE. CLOSEST: ')
             print(room_frame_to_robot_frame((closest_clean_node[0], closest_clean_node[1])))
 
         # else, searcher can go to neopolitan ideal because the space is free
         else:
-            print("NEOPOLITAN IDEAL:")
-            print(room_frame_to_robot_frame(neopolitan_ideal))
+            print("NAVIGATING TO NEOPOLITAN IDEAL")
             patrolling_goal_locations.append(neopolitan_ideal)
 
     return [room_frame_to_robot_frame(patrolling_goal_location) for patrolling_goal_location in patrolling_goal_locations]
@@ -116,6 +124,18 @@ def dontMove(searcher_locations, map):
 
     return patrolling_goal_locations  
 
+def is_ip_online(IP):
+    # Ping the TX node's ip address, return true/false depending on if ping went through. 
+    # use 
+    # Option for the number of packets as a function of
+    param = '-n' if platform.system().lower()=='windows' else '-c'
+
+    # Building the command. Ex: "ping -c 1 google.com"
+    command = ['ping', param, '1', IP]
+
+    ip_sensed = subprocess.call(command, stdout=subprocess.PIPE) == 0
+
+    return ip_sensed
 
 # gets where all available robots are in ROOM FRAME. 
 # note, if the robot is not online, their location is (-1, -1)
@@ -125,9 +145,14 @@ def get_current_searcher_locations(SEARCHER_CONFIGS):
 
     for i in range(len(SEARCHER_CONFIGS)):
         try:
-            topic_response = rospy.wait_for_message(SEARCHER_CONFIGS[i]['topic'] + '/mobile_base/odom', Odometry, timeout=30)
-            searcher_locations[i] = robot_frame_to_room_frame((topic_response.pose.pose.position.x, topic_response.pose.pose.position.y))
-        
+            # save wasted timeout time if we cannot ping
+            if is_ip_online(SEARCHER_CONFIGS[i]['target_ip']):
+                topic_response = rospy.wait_for_message(SEARCHER_CONFIGS[i]['topic'] + '/mobile_base/odom', Odometry, timeout=30)
+                searcher_locations[i] = robot_frame_to_room_frame((topic_response.pose.pose.position.x, topic_response.pose.pose.position.y))
+            else: 
+                print("Agent is not online: " + SEARCHER_CONFIGS[i]['topic'])
+                searcher_locations[i] = (-1,-1)
+
         # If an agent is not publishing their odometry, just continue
         # This controls for case if a robot dies. Algorithm should proceed.
         except rospy.exceptions.ROSException:

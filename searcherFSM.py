@@ -27,6 +27,10 @@ SEARCHER_CONFIGS = [
     }
 ]
 
+MAX_SIGNAL_STRENGTH_VIA_VARIANCE = 10000
+
+WAYPOINT_THRESHOLD = [.15,.15]
+
 #TARGET_NODE_IP = '192.168.1.30'
 
 class SearcherFSM:
@@ -49,26 +53,29 @@ class SearcherFSM:
 
         # In case the callbacks below are never invoked, i.e. other searchers are non-functional somehow.
         self.other_searcher1_target_node_sensed = False
-        self.other_searcher1_aoa_strength = 0
+        self.other_searcher1_aoa_strength = MAX_SIGNAL_STRENGTH_VIA_VARIANCE
         self.other_searcher2_target_node_sensed = False
-        self.other_searcher2_aoa_strength = 0
+        self.other_searcher2_aoa_strength = MAX_SIGNAL_STRENGTH_VIA_VARIANCE
     
     def cb1_target_node_sensed(self, node_sensed):
-        self.other_searcher1_target_node_sensed = node_sensed
+        self.other_searcher1_target_node_sensed = node_sensed.data
     
     def cb2_target_node_sensed(self, node_sensed):
-        self.other_searcher2_target_node_sensed = node_sensed
+        self.other_searcher2_target_node_sensed = node_sensed.data
 
     def cb1_aoa_strength_update(self, data):
         print('SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
+        print(data)
         self.other_searcher1_aoa_strength = data
     
     def cb2_aoa_strength_update(self, data):
         print('SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
+        print(data)
         self.other_searcher2_aoa_strength = data
 
     def isDemoted(self):
-        if (self.S.aoa_strength < self.other_searcher1_aoa_strength) or (self.S.aoa_strength < self.other_searcher2_aoa_strength):
+        if (self.S.aoa_strength > self.other_searcher1_aoa_strength) or (self.S.aoa_strength > self.other_searcher2_aoa_strength):
+            print('AGENT IS DEMOTED.')
             return True
         else:
             return False
@@ -86,10 +93,11 @@ class SearcherFSM:
 
                 patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
                 # If the robot is not at the patrol location, go there
-                if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > .1 or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > .1:
+                if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > WAYPOINT_THRESHOLD[0] or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > WAYPOINT_THRESHOLD[1]:
                     print("actual location: ")
                     print(self.S.get_location()[0],self.S.get_location()[1])
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
+                    print("Waypoint Script is Finished.")
 
                 # if not self.S.is_moving():
                 #     patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
@@ -100,7 +108,7 @@ class SearcherFSM:
 
                 # Exit conditions
                 reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
-                if reached_goal:
+                if reached_goal.data:
                     if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
                         next_state = 'listening'
 
@@ -111,14 +119,16 @@ class SearcherFSM:
                 print(self.S.aoa_strength)
 
                 # Exit conditions
-                if self.S.aoa_strength > self.other_searcher1_aoa_strength and self.S.aoa_strength > self.other_searcher2_aoa_strength:
+                if self.S.aoa_strength < self.other_searcher1_aoa_strength and self.S.aoa_strength < self.other_searcher2_aoa_strength:
                     next_state = 'hunting'
             
             if self.current_state is 'hunting':
+                rospy.loginfo("Hunting...")
                 # Perform normal state task
-                error_threshold = 5 # degrees
+                error_threshold = 10 # degrees
                 # first, orient the robot in the proper angle so it is headed at the target
                 deg_to_target = self.S.get_location()[2] - self.S.aoa_angle
+                print("Degrees to target: " + str(deg_to_target))
 
                 # if robot is not oriented within threshold
                 if abs(deg_to_target) > error_threshold:

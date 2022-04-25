@@ -14,7 +14,7 @@ from tf.transformations import euler_from_quaternion
 from sensor_msgs.msg import LaserScan
 from map_to_room_frame import map_to_room_frame, add_barrier_bumper_to_map
 
-STOP_DISTANCE = 0.3
+STOP_DISTANCE = 0.4
 LIDAR_ERROR = 0.05
 SAFE_STOP_DISTANCE = STOP_DISTANCE + LIDAR_ERROR
 
@@ -64,6 +64,7 @@ class Searcher:
         # Test this feature, talk to Caleb about anything before changing it
         self.stop_robot()
         print("UPDATING AOA READING")
+        current_angle = self.get_location()[2]
         self.request_aoa.publish(True)
         print("CHECKPOINT 1 of 3")
         aoa_array_msg = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array)
@@ -73,14 +74,14 @@ class Searcher:
             print("Angle: " + str(tx.aoa_azimuth[0]))
             print("Variance: " + str(tx.profile_variance))
             self.aoa_angle = tx.aoa_azimuth[0]
-            self.aoa_strength = 1-tx.profile_variance # we will choose the highest
+            self.aoa_strength = tx.profile_variance # we will choose the highest
         print("CHECKPOINT 3 of 3")
         # Convert AOA_angle to world frame- MUST HAVE
-        self.aoa_angle = (self.aoa_angle + self.get_location[2]) % 360
+        self.aoa_angle = (self.aoa_angle + current_angle)
         if self.aoa_angle > 180.0 and self.aoa_angle <= 360.0:
             self.aoa_angle = -(360.0 - self.aoa_angle)
         elif self.aoa_angle < -180.0 and self.aoa_angle >= -360.0:
-            self.aoa_angle = (360.0 + self.aoa_angle)
+            self.aoa_angle = (360.0 - self.aoa_angle)
         # Publish AOA_strength- MUST HAVE
         self.AOA_pub.publish(self.aoa_strength) # This publishes the AOA to the other robots
 
@@ -98,6 +99,7 @@ class Searcher:
 
         if _distance < SAFE_STOP_DISTANCE and _distance > 0:
             self.stop_robot()
+            print("OBSTACLE DETECTED. ROBO")
             return True
         return False
 
@@ -185,7 +187,7 @@ class Searcher:
 
 
 if __name__ == "__main__":
-    S = Searcher('searcher1', 'locobot', '192.168.1.30')
+    S = Searcher('searcher1', 'locobot5', '192.168.1.30')
     # print(S.is_moving())
     while True:
         print(S.get_location())
