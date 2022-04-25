@@ -46,6 +46,11 @@ class SearcherFSM:
 
         rospy.Subscriber(other_searcher_1_config['topic'] + "/aoa_strength", Float32, self.cb1_aoa_strength_update)
         rospy.Subscriber(other_searcher_2_config['topic'] + "/aoa_strength", Float32, self.cb2_aoa_strength_update)
+
+        rospy.Subscriber("/group5/start", Bool, self.cb_start_game)
+        rospy.Subscriber("/group5/quit", Bool, self.cb_quit_game)
+        self.start_game = False
+        self.quit_game = False
         
         self.current_state = 'patrolling'   
         print("Initialization successful!")    
@@ -56,6 +61,14 @@ class SearcherFSM:
         self.other_searcher1_aoa_strength = MAX_SIGNAL_STRENGTH_VIA_VARIANCE
         self.other_searcher2_target_node_sensed = False
         self.other_searcher2_aoa_strength = MAX_SIGNAL_STRENGTH_VIA_VARIANCE
+
+        self.rerouting_hunter = False
+    
+    def cb_start_game(self, data):
+        self.start_game = data.data
+    
+    def cb_quit_game(self, data):
+        self.quit_game = data.data
     
     def cb1_target_node_sensed(self, node_sensed):
         self.other_searcher1_target_node_sensed = node_sensed.data
@@ -83,31 +96,29 @@ class SearcherFSM:
 
     def loop(self):
         while True:
-            next_state = self.current_state # by default, stays within the current state
+            # by default, stays within the current state
+            next_state = self.current_state 
+
+            if self.quit_game: 
+                next_state = 'idle'
 
             if self.current_state is 'patrolling':
-                print("In  patrolling")
-                # Perform normal state task             
-                # Get the locations that robots should go to
-                # Task 2: move robot to location via move_robot_to_waypoint()
+                rospy.loginfo("Patrolling...")
 
+                # Get the locations that robots should go to
                 patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
+
+                # Task 2: move robot to location via move_robot_to_waypoint()
                 # If the robot is not at the patrol location, go there
                 if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > WAYPOINT_THRESHOLD[0] or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > WAYPOINT_THRESHOLD[1]:
-                    print("actual location: ")
+                    print("Agent's Location: ", end='')
                     print(self.S.get_location()[0],self.S.get_location()[1])
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
                     print("Waypoint Script is Finished.")
 
-                # if not self.S.is_moving():
-                #     patrolling_location_goal = get_patrolling_locations(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
-                #     self.S.move_robot_to_waypoint(patrolling_location_goal)
-                #     print("Not MOVING.")
-                # else:
-                #     print("In patrolling. MOVING. ")
-
                 # Exit conditions
                 reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+
                 if reached_goal.data:
                     if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
                         next_state = 'listening'
@@ -116,7 +127,6 @@ class SearcherFSM:
                 # Perform normal state task, be sure to publish aoa data to the other robots
                 # AOA angles should be in global frame, not robot frames
                 self.S.update_aoa_reading()
-                print(self.S.aoa_strength)
 
                 # Exit conditions
                 if self.S.aoa_strength < self.other_searcher1_aoa_strength and self.S.aoa_strength < self.other_searcher2_aoa_strength:
@@ -124,38 +134,87 @@ class SearcherFSM:
             
             if self.current_state is 'hunting':
                 rospy.loginfo("Hunting...")
-                # Perform normal state task
+                
                 error_threshold = 10 # degrees
                 # first, orient the robot in the proper angle so it is headed at the target
                 deg_to_target = self.S.get_location()[2] - self.S.aoa_angle
-                print("Degrees to target: " + str(deg_to_target))
 
-                # if robot is not oriented within threshold
-                if abs(deg_to_target) > error_threshold:
+                is_oriented_to_node = abs(deg_to_target) > error_threshold
+                self.rerouting_hunter = self.rerouting_hunter
+                obstacle_detected = self.S.obstacle_detected()
+                is_demoted = self.isDemoted()
+                truthTable = [is_oriented_to_node, self.rerouting_hunter, obstacle_detected, is_demoted]
+                print("is_oriented_to_node: " + is_oriented_to_node + 
+                    " | self.rerouting_hunter: " + self.rerouting_hunter  +
+                    " | obstacle_detected: " + obstacle_detected + 
+                    " | is_demoted: " + is_demoted
+                )
+
+                # no matter what, if another agent has a better shot at catching the target, then stop and defer
+                if is_demoted:
+                    self.S.stop_robot()
+                    next_state = 'listening'
+                    continue
+
+                if truthTable is [1, 0, 0, 0]:
+                    self.S.move_robot_in_direction(linear=True,positive=True)
+                    continue
+                
+                if truthTable is [1,1,0,0] or truthTable is [0,1,0,0]:
+                    self.rerouting_hunter = False
+                    self.S.move_robot_in_direction(linear=True,positive=True)
+                
+                if truthTable is [1,0,1,0] or truthTable is [0,0,1,0]:
+                    self.S.stop_robot()
+                    self.rerouting_hunter = True
+                
+                if truthTable is [0,0,0,0]:
                     self.S.move_robot_in_direction(linear=False, positive=deg_to_target < 0)
                 
-                # second, linearly move the robot towards the target
-                else:
-                    #if obstacle, use waypoint script to move around obstacle. Else, move forward
-                    if self.S.obstacle_detected():
-                        # TODO
-                        print("Target is likely behind obstacle")
-                    else:
-                        self.S.move_robot_in_direction(linear=True,positive=True)
+                if truthTable is [0,1,1,0] or truthTable is [1,1,0]:
+                    self.S.move_robot_in_direction(linear=False, positive=deg_to_target < 0)
 
-                # Exit conditions
-                if self.S.obstacle_detected() or self.isDemoted():
-                    next_state = 'listening'
+                ### END NEW LOGIC
+
+                # if self.rerouting_hunter: 
+                #     # move angle of robot slightly
+                
+                #     if not self.S.obstacle_detected():
+                #         self.S.move_robot_in_direction(linear=True,positive=True)
+                # # robotOrientedToNodeWithinThreshold
+                # # self.rerouting_hunter
+                # # obstacle_detected
+                # # is demoted
+
+                # # first, orient the robot in the proper angle so it is headed at the target
+                # deg_to_target = self.S.get_location()[2] - self.S.aoa_angle
+                # print("Degrees to target: " + str(deg_to_target))
+
+                # # if robot is not oriented within threshold
+                # if abs(deg_to_target) > error_threshold:
+                #     self.S.move_robot_in_direction(linear=False, positive=deg_to_target < 0)
+                
+                # # second, linearly move the robot towards the target
+                # else:
+                #     #if obstacle, use waypoint script to move around obstacle. Else, move forward
+                #     if self.S.obstacle_detected():
+                #         self.rerouting_hunter = True
+                #         continue
+                #         print("Target is likely behind obstacle")
+                #     else:
+                #         self.S.move_robot_in_direction(linear=True,positive=True)
+
+                # # Exit conditions
+                # if self.S.obstacle_detected() or self.isDemoted():
+                #     next_state = 'listening'
             
-            # if self.current_state is 'idle':
-            # Perform normal state task
-            #     if manualResetHit:
-            #         next_state = 'patrolling'
+            if self.current_state is 'idle':
+                if self.start_game:
+                    next_state = 'patrolling'
+                    self.start_game = False
+            
             if(self.current_state != next_state):
-                print("Changing state to: " + next_state)
-            
-            # TODO: subscribe once to some new topic that is like '/operator/game_over' and takes you to idle
-                    
+                print("------ Changing state to: " + next_state + ' ------')                    
 
             self.current_state = next_state
 
