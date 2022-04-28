@@ -36,7 +36,7 @@ def get_patrolling_location(SEARCHER_CONFIGS, CURRENT_SEARCHER_IDX):
     # switch out any algorithm here
     patrolling_goal_locations = neopolitan(searcher_locations, map)
     # patrolling_goal_locations = dontMove(searcher_locations, map)
-    print('Ideal coverage location: ' + str(patrolling_goal_locations[CURRENT_SEARCHER_IDX]))
+    print('Best Patrolling Location: ' + str(patrolling_goal_locations[CURRENT_SEARCHER_IDX]))
     return patrolling_goal_locations[CURRENT_SEARCHER_IDX]
 
 # neopolitan algorithm

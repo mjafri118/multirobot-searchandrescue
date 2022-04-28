@@ -6,7 +6,10 @@ from searcher import Searcher
 from patrol import get_patrolling_location
 import rospy
 from std_msgs.msg import Bool, Float32
+from nav_msgs.msg import Path
 import argparse
+from tf.transformations import euler_from_quaternion
+import numpy as np
 
 # code is currently built to support THREE searcher agents exactly. 
 SEARCHER_CONFIGS = [
@@ -25,7 +28,7 @@ SEARCHER_CONFIGS = [
     {
         "name": 'searcher3',
         "topic": 'locobot5',
-        "target_ip": '192.168.1.30',
+        "target_ip": '192.168.1.54',
 	    "device_ip": '192.168.1.15'
     }
 ]
@@ -73,24 +76,24 @@ class SearcherFSM:
         self.quit_game = data.data
     
     def cb1_target_node_sensed(self, node_sensed):
-        print("CALLBACK 1: NODE SENSED BELOW: ")
-        print(node_sensed)
+        #print("CALLBACK 1: NODE SENSED BELOW: ")
+        #print(node_sensed)
         self.other_searcher1_target_node_sensed = node_sensed.data
     
     def cb2_target_node_sensed(self, node_sensed):
-        print("CALLBACK 2: NODE SENSED BELOW: ")
-        print(node_sensed)
+        #print("CALLBACK 2: NODE SENSED BELOW: ")
+        #print(node_sensed)
         self.other_searcher2_target_node_sensed = node_sensed.data
 
     def cb1_aoa_strength_update(self, data):
-        print("CB1 AOA STRENGTH BELOW: ")
-        print(data)
+        #print("CB1 AOA STRENGTH BELOW: ")
+        #print(data)
         # rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + 'SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
         self.other_searcher1_aoa_strength = data.data
     
     def cb2_aoa_strength_update(self, data):
-        print("CB2 AOA STRENGTH BELOW: ")
-        print(data)
+        #print("CB2 AOA STRENGTH BELOW: ")
+        #print(data)
         # rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + 'SIGNAL STRENGTH OF ANOTHER ROBOT UPDATED')
         self.other_searcher2_aoa_strength = data.data
 
@@ -122,15 +125,39 @@ class SearcherFSM:
                 # If the robot is not at the patrol location, go there
                 if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > WAYPOINT_THRESHOLD[0] or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > WAYPOINT_THRESHOLD[1]:
                     self.S.move_robot_to_waypoint(patrolling_location_goal)
-                    rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Waypoint Script is Finished.")
-
+                    path_planned = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/move_base/NavfnROS/plan',Path)
+                    reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+                    reached_goal = reached_goal.data
+                    #rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Waypoint Script is Finished.")
+                else:
+                    reached_goal = True
                 # Exit conditions
-                reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+                #reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+                print("AT THE GOAL: ", reached_goal)
+                #cancelled_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/cancelled_goal', Bool)
 
-                if reached_goal.data:
-                    print("GOAL REACHED, TARGET SENSED IS " + str(self.S.is_target_sensed()))
-                    if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
-                        next_state = 'listening'
+                if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
+                    self.S.cancel_waypoint.publish(True)
+                    next_state = 'listening'
+                else:
+                    #x_goal = patrolling_location_goal[0]
+                    #y_goal = patrolling_location_goal[1]
+                    while not reached_goal:
+                        for pose in reversed(path_planned.poses):
+                            new_goal = (pose.pose.position.x, pose.pose.position.y)
+                            print("GOAL NOT REACHED, CHOOSING NEW LOCATION: "+ str(new_goal))
+                            self.S.move_robot_to_waypoint(new_goal,timeout=10)
+                            reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+                            reached_goal = reached_goal.data
+                            if reached_goal:
+                                break
+
+                        #x_goal = x_goal - .15 # Move goal .15m forward
+                        #new_goal = (x_goal,y_goal)
+                        #print("GOAL NOT REACHED, CHOOSING NEW LOCATION: "+ str(new_goal))
+                        #self.S.move_robot_to_waypoint(new_goal)
+                        #reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+                        #reached_goal = reached_goal.data
 
             if self.current_state is 'listening':
                 # Perform normal state task, be sure to publish aoa data to the other robots
@@ -144,7 +171,7 @@ class SearcherFSM:
             if self.current_state is 'hunting':
                 # rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Hunting...")
                 
-                error_threshold = 10 # degrees
+                error_threshold = 45 # degrees
                 # first, orient the robot in the proper angle so it is headed at the target
                 deg_to_target = self.S.get_location()[2] - self.S.aoa_angle
 

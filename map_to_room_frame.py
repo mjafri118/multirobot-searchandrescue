@@ -1,6 +1,7 @@
 from nav_msgs.msg import OccupancyGrid
 import numpy as np
 import rospy
+import matplotlib.pyplot as plt
 
 ROBOT_RADIUS = 5 # 8 cells across is a reasonable buffer
 
@@ -56,6 +57,9 @@ def map_to_room_frame(topic):
                 small_row = int((iter - small_column)/testbed_w_cells)
                 smaller_map[small_column,testbed_h_cells - 1 - small_row] = data[index]
                 iter+=1
+    
+    #plt.imshow(smaller_map,interpolation='nearest')
+    #plt.show()
     return smaller_map
 
 def add_barrier_bumper_to_map(map):
@@ -75,4 +79,6 @@ def add_barrier_bumper_to_map(map):
         for idy in range(height):
             if map[idx,idy] == 50:
                 map[idx,idy] = 100
+    #plt.imshow(map,interpolation='nearest')
+    #plt.show()
     return map

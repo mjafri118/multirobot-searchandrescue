@@ -40,9 +40,9 @@ sudo ./WSR-WifiDriver/setup.sh 63 104 HT20
 cd ~
 sudo ./WSR-WifiDriver/setup.sh 61 108 HT20
 
-# On TX10: (Use correct tx packet length)
+# On TX1: (Use correct tx packet length)
 cd ~
-sudo ./WSR-WifiDriver/setup.sh 65 104 HT20
+sudo ./WSR-WifiDriver/setup.sh 57 104 HT20
 
 
 # TERMINALS TO RUN EVERY TIME
@@ -64,7 +64,7 @@ python ~/Harvard_CS286/cs286_mini_hack_2/scripts/online_data_test2.py --robot_us
 python ~/Harvard_CS286/cs286_mini_hack_2/scripts/online_data_test2.py --robot_username all-locobot4 --robot_ip 192.168.1.14 --tx_username all-up-tx3 --tx_ip 192.168.1.23 --packet_len 61 --robot locobot4 --ts 5
 
 # On PC: for LOCOBOT5
-python ~/Harvard_CS286/cs286_mini_hack_2/scripts/online_data_test2.py --robot_username all-locobot5 --robot_ip 192.168.1.15 --tx_username all-up-tx10 --tx_ip 192.168.1.30 --packet_len 65 --robot locobot5 --ts 5
+python ~/Harvard_CS286/cs286_mini_hack_2/scripts/online_data_test2.py --robot_username all-locobot5 --robot_ip 192.168.1.15 --tx_username all-up-tx1 --tx_ip 192.168.1.54 --packet_len 57 --robot locobot5 --ts 5
 
 # On ROBOT for LOCOBOT3
 roslaunch interbotix_xslocobot_control xslocobot_python.launch robot_model:=locobot_px100 use_nav:=true use_lidar:=true rtabmap_args:=-d robot_name:=locobot3

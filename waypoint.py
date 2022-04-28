@@ -15,12 +15,13 @@ import argparse
 
 
 class RobotSLAM_Nav:
-    def __init__(self, robot_name):
+    def __init__(self, robot_name,timeout=25):
         rospy.init_node("move_base_tester", anonymous=True)
         self.client = actionlib.SimpleActionClient('/'+robot_name+'/move_base',MoveBaseAction)
-        self.timeout = 60 #secs
+        self.timeout = timeout #secs
         self.step_size = 1.0
-        self.reached_goal = rospy.Publisher(robot_name+'/reached_goal',Bool,latch=True, queue_size=1)
+        self.reached_goal = rospy.Publisher(robot_name+'/reached_goal',Bool, queue_size=1)
+        #self.cancelled_goal = rospy.Publisher(robot_name+'/cancelled_goal',Bool,latch=True, queue_size=1)
         
         #Clear the costmap and rtabmap using rosservice calls.
         print("Resetting rtabmap")
@@ -44,11 +45,15 @@ class RobotSLAM_Nav:
         self.goal.target_pose.header.frame_id = robot_name+"/map"
 
 
-        # This subscriber listens for goals to go to on TODO_topic
+        # This subscriber listens for goals to go to on /locobotX/goal_waypoint topic
         rospy.Subscriber('/'+robot_name+'/goal_waypoint', Odometry, self.goal_callback)
         self.gotGOAL = False
         self.current_position = Point()
         self.current_ori = Quaternion()
+
+        # This subscriber listens for cancelling signal to go to on /locobotX/cancel_waypoint topic
+        rospy.Subscriber('/'+robot_name+'/cancel_waypoint', Bool, self.cancel_callback)
+
 
     def goal_callback(self, msg):
         self.goal_x = msg.pose.pose.position.x
@@ -56,6 +61,9 @@ class RobotSLAM_Nav:
         self.goal_z = msg.pose.pose.orientation.z
         self.gotGOAL = True
         print("Got new goal")
+
+    def cancel_callback(self, msg):
+        self.client.cancel_goal()
 
     def move(self):
         rospy.loginfo("Waiting for Goal...")
@@ -79,13 +87,15 @@ class RobotSLAM_Nav:
                 self.goal.target_pose.pose.orientation.w = q[3]
 
                 rospy.loginfo("Attempting to move to the goal")
-                self.reached_goal.publish(False)
+                #self.reached_goal.publish(False)
+                #self.cancelled_goal.publish(False)
                 self.client.send_goal(self.goal)
                 wait=self.client.wait_for_result(rospy.Duration(self.timeout))
 
                 if not wait:
                     rospy.loginfo("Timed-out after failing to reach the goal.")
                     self.client.cancel_goal()
+                    self.reached_goal.publish(False)
                     self.gotGOAL = False
                     rospy.loginfo("Please provide a new goal position")
                 else:

@@ -23,6 +23,7 @@ class Searcher:
         self.name = name
         self.topic = topic
         self.target_ip_address = target_ip_address
+        self.target_activated = False
 
         self.aoa_angle = 0 # bounded to [-180, 180]
         self.aoa_strength = 0 # bounded to [0, 1]
@@ -34,6 +35,8 @@ class Searcher:
         self.AOA_pub = rospy.Publisher("/"+self.topic+"/aoa_strength", Float32, queue_size=1)
         self.stop_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1)
         self.request_aoa = rospy.Publisher(self.topic+'/run_test_2',Bool,latch=True, queue_size=1)
+        self.cancel_waypoint = rospy.Publisher(self.topic+'/cancel_waypoint',Bool, queue_size=1)
+        rospy.Subscriber('/activate_target',Bool,self.activate_target_cb)
 
     # Need to prove that this works
     def get_map(self):
@@ -42,6 +45,10 @@ class Searcher:
     # Need to prove that this works
     def filter_map(self):
         return add_barrier_bumper_to_map(self.get_map())
+
+    def activate_target_cb(self,msg):
+        print("Target Activated")
+        self.target_activated = msg.data
  
     def is_target_sensed(self):
         # Ping the TX node's ip address, return true/false depending on if ping went through. 
@@ -56,27 +63,32 @@ class Searcher:
         
         # publish so other searcher FSMs can know when another robot detects the ip.
         # rospy.publish('locobotME/target_node_sensed', Boolean, target_sensed) # sync this up with subscribers in FSM inits
-        self.is_target_sensed_pub.publish(target_sensed)
-        return target_sensed
+
+        # Also wait for activation of target by terminal publish: rostopic pub /activate_target Bool Latch=True
+        if self.target_activated:
+            self.is_target_sensed_pub.publish(target_sensed)
+            return target_sensed
+        else:
+            self.is_target_sensed_pub.publish(False)
+            return False
     
-    # NOT COMPLETED
     def update_aoa_reading(self):
         # Test this feature, talk to Caleb about anything before changing it
         self.stop_robot()
         rospy.loginfo(self.topic + ": " + "UPDATING AOA READING")
         current_angle = self.get_location()[2]
         self.request_aoa.publish(True)
-        rospy.loginfo(self.topic + ": " + "CHECKPOINT 1 of 3")
+        #rospy.loginfo(self.topic + ": " + "CHECKPOINT 1 of 3")
         aoa_array_msg = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array)
-        rospy.loginfo(self.topic + ": " + "CHECKPOINT 2 of 3")
+        #rospy.loginfo(self.topic + ": " + "CHECKPOINT 2 of 3")
         for tx in aoa_array_msg.aoa_array:
-            rospy.loginfo(self.topic + ": " + "ID: " + tx.id)
-            rospy.loginfo(self.topic + ": " + "Angle: " + str(tx.aoa_azimuth[0]))
-            rospy.loginfo(self.topic + ": " + "Variance: " + str(tx.profile_variance))
+            #rospy.loginfo(self.topic + ": " + "ID: " + tx.id)
+            #rospy.loginfo(self.topic + ": " + "Angle: " + str(tx.aoa_azimuth[0]))
+            #rospy.loginfo(self.topic + ": " + "Variance: " + str(tx.profile_variance))
             self.aoa_angle = tx.aoa_azimuth[0]
             self.aoa_strength = tx.profile_variance # we will choose the highest
-            print("aoa_strength:" + str(self.aoa_strength))
-        rospy.loginfo(self.topic + ": " + "CHECKPOINT 3 of 3")
+            #print("aoa_strength:" + str(self.aoa_strength))
+        #rospy.loginfo(self.topic + ": " + "CHECKPOINT 3 of 3")
         # Convert AOA_angle to world frame- MUST HAVE
         self.aoa_angle = (self.aoa_angle + current_angle)
         if self.aoa_angle > 180.0 and self.aoa_angle <= 360.0:
