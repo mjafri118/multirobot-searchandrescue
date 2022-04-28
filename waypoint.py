@@ -9,16 +9,16 @@ from move_base_msgs.msg import MoveBaseAction , MoveBaseGoal
 from tf.transformations import quaternion_from_euler
 from std_srvs.srv import Empty
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32
 from geometry_msgs.msg import Point, Quaternion
 import argparse
 
 
 class RobotSLAM_Nav:
-    def __init__(self, robot_name,timeout=25):
+    def __init__(self, robot_name):
         rospy.init_node("move_base_tester", anonymous=True)
         self.client = actionlib.SimpleActionClient('/'+robot_name+'/move_base',MoveBaseAction)
-        self.timeout = timeout #secs
+        self.timeout = 25
         self.step_size = 1.0
         self.reached_goal = rospy.Publisher(robot_name+'/reached_goal',Bool, queue_size=1)
         #self.cancelled_goal = rospy.Publisher(robot_name+'/cancelled_goal',Bool,latch=True, queue_size=1)
@@ -51,8 +51,14 @@ class RobotSLAM_Nav:
         self.current_position = Point()
         self.current_ori = Quaternion()
 
+        rospy.Subscriber('/'+robot_name+'/timeout', Float32, self.timeout_callback)
+        self.gotGOAL = False
+
         # This subscriber listens for cancelling signal to go to on /locobotX/cancel_waypoint topic
         rospy.Subscriber('/'+robot_name+'/cancel_waypoint', Bool, self.cancel_callback)
+
+    def timeout_callback(self, msg):
+        self.timeout = msg.data
 
 
     def goal_callback(self, msg):

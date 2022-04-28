@@ -32,6 +32,7 @@ class Searcher:
         self.vel_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
         self.is_target_sensed_pub = rospy.Publisher("/"+self.topic+"/target_node_sensed", Bool, queue_size=1)
         self.goal_waypoint_pub = rospy.Publisher("/"+self.topic+"/goal_waypoint", Odometry, queue_size=1)
+        self.time_out_pub = rospy.Publisher("/"+self.topic+"/timeout", Float32, queue_size=1)
         self.AOA_pub = rospy.Publisher("/"+self.topic+"/aoa_strength", Float32, queue_size=1)
         self.stop_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1)
         self.request_aoa = rospy.Publisher(self.topic+'/run_test_2',Bool,latch=True, queue_size=1)
@@ -165,18 +166,20 @@ class Searcher:
         # Publish the message
         self.vel_pub.publish(move_cmd)
     
-    def move_robot_to_waypoint(self, waypoint):
+    def move_robot_to_waypoint(self, waypoint,timeout=25):
         # currently requires waypoint.py to be running on each robot
         # give a discrete (x,y,theta) location for robot to travel to with obstacle avoidance
         # function prefers input of (x,y,theta), but will accept (x,y) and send the robot to (x,y,0)
-
+        time_out = Float32()
         goal_cmd = Odometry()
+        time_out.data = timeout
         goal_cmd.pose.pose.position.x = waypoint[0]
         goal_cmd.pose.pose.position.y = waypoint[1]
         if len(waypoint) == 2:
             goal_cmd.pose.pose.position.z = 0.0 # May need to be smarter with this choice
         else:
             goal_cmd.pose.pose.position.z = waypoint[2]
+        self.time_out_pub.publish(time_out)
         self.goal_waypoint_pub.publish(goal_cmd)
 
     def is_moving(self):
