@@ -110,3 +110,6 @@ python ~/Documents/GitHub/multirobot-searchandrescue/searcherFSM.py --robot_inde
 
 # On PC for LOCOBOT5
 python ~/Documents/GitHub/multirobot-searchandrescue/searcherFSM.py --robot_index 2
+
+# On PC to Activate Targets
+rostopic pub /activate_target Bool True
