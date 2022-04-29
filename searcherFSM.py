@@ -118,46 +118,48 @@ class SearcherFSM:
 
                 # Get the locations that robots should go to
                 patrolling_location_goal = get_patrolling_location(SEARCHER_CONFIGS, self.CURRENT_SEARCHER_IDX)
-                rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Patrolling location goal: " + str(patrolling_location_goal))
-                rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Current robot location:" + str(self.S.get_location()))
+                new_goal = (patrolling_location_goal[0],patrolling_location_goal[1])
+                time_out = 30
+                reached_goal = True
 
                 # Task 2: move robot to location via move_robot_to_waypoint()
-                # If the robot is not at the patrol location, go there
-                if abs(self.S.get_location()[0] - patrolling_location_goal[0]) > WAYPOINT_THRESHOLD[0] or abs(self.S.get_location()[1] - patrolling_location_goal[1]) > WAYPOINT_THRESHOLD[1]:
-                    self.S.move_robot_to_waypoint(patrolling_location_goal)
-                    path_planned = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/move_base/NavfnROS/plan',Path)
-                    reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
-                    reached_goal = reached_goal.data
-                    #rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Waypoint Script is Finished.")
-                else:
-                    reached_goal = True
-                # Exit conditions
-                #reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+                # While the robot is not at the patrol location, try to go there but check for node
+                while abs(self.S.get_location()[0] - new_goal[0]) > WAYPOINT_THRESHOLD[0] or abs(self.S.get_location()[1] - new_goal[1]) > WAYPOINT_THRESHOLD[1]:
+                    print("Not at final location yet")
+                    # Check for node
+                    if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
+                        self.S.cancel_waypoint.publish(True)
+                        reached_goal = False
+                        next_state = 'listening'
+                        break # Break while loop
+                    else:
+                        self.S.move_robot_to_waypoint(new_goal,timeout=time_out)
+                        no_path = False
+                        try:
+                            path_planned = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/move_base/NavfnROS/plan',Path,timeout=10)
+                        except rospy.ROSException:
+                            no_path = True
+                        reached_goal_ = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
+                        reached_goal = reached_goal_.data
+                        if reached_goal:
+                            print("Waypoint script reports completion.")
+                            break # Break while loop
+                        else:
+                            # Ideal location is next in line, but there is less time to get there
+                            
+                            if no_path or len(path_planned.poses) <= 2:
+                                print("EMPTY NAVIGATION PATH TO PULL FROM")
+                                new_goal = (self.S.get_location()[0],self.S.get_location()[1])
+                            else:
+                                new_pose = path_planned.poses[-2]
+                                new_goal = (new_pose.pose.position.x, new_pose.pose.position.y)
+                            time_out = 20
+                
                 print("AT THE GOAL: ", reached_goal)
-                #cancelled_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/cancelled_goal', Bool)
-
+                # Exit conditions
                 if self.S.is_target_sensed() or self.other_searcher1_target_node_sensed or self.other_searcher2_target_node_sensed:
                     self.S.cancel_waypoint.publish(True)
                     next_state = 'listening'
-                else:
-                    #x_goal = patrolling_location_goal[0]
-                    #y_goal = patrolling_location_goal[1]
-                    while not reached_goal:
-                        for pose in reversed(path_planned.poses):
-                            new_goal = (pose.pose.position.x, pose.pose.position.y)
-                            print("GOAL NOT REACHED, CHOOSING NEW LOCATION: "+ str(new_goal))
-                            self.S.move_robot_to_waypoint(new_goal,timeout=10)
-                            reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
-                            reached_goal = reached_goal.data
-                            if reached_goal:
-                                break
-
-                        #x_goal = x_goal - .15 # Move goal .15m forward
-                        #new_goal = (x_goal,y_goal)
-                        #print("GOAL NOT REACHED, CHOOSING NEW LOCATION: "+ str(new_goal))
-                        #self.S.move_robot_to_waypoint(new_goal)
-                        #reached_goal = rospy.wait_for_message(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic']+'/reached_goal', Bool)
-                        #reached_goal = reached_goal.data
 
             if self.current_state is 'listening':
                 # Perform normal state task, be sure to publish aoa data to the other robots

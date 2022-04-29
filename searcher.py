@@ -79,25 +79,20 @@ class Searcher:
         rospy.loginfo(self.topic + ": " + "UPDATING AOA READING")
         current_angle = self.get_location()[2]
         self.request_aoa.publish(True)
-        #rospy.loginfo(self.topic + ": " + "CHECKPOINT 1 of 3")
+        rospy.loginfo(self.topic + ": " + "CHECKPOINT 1 of 2")
         aoa_array_msg = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array)
-        #rospy.loginfo(self.topic + ": " + "CHECKPOINT 2 of 3")
+        rospy.loginfo(self.topic + ": " + "CHECKPOINT 2 of 2")
         for tx in aoa_array_msg.aoa_array:
-            #rospy.loginfo(self.topic + ": " + "ID: " + tx.id)
-            #rospy.loginfo(self.topic + ": " + "Angle: " + str(tx.aoa_azimuth[0]))
-            #rospy.loginfo(self.topic + ": " + "Variance: " + str(tx.profile_variance))
             self.aoa_angle = tx.aoa_azimuth[0]
             self.aoa_strength = tx.profile_variance # we will choose the highest
-            #print("aoa_strength:" + str(self.aoa_strength))
-        #rospy.loginfo(self.topic + ": " + "CHECKPOINT 3 of 3")
-        # Convert AOA_angle to world frame- MUST HAVE
+        # Convert AOA_angle to world frame
         self.aoa_angle = (self.aoa_angle + current_angle)
         if self.aoa_angle > 180.0 and self.aoa_angle <= 360.0:
             self.aoa_angle = -(360.0 - self.aoa_angle)
         elif self.aoa_angle < -180.0 and self.aoa_angle >= -360.0:
             self.aoa_angle = (360.0 - self.aoa_angle)
-        # Publish AOA_strength- MUST HAVE
-        self.AOA_pub.publish(self.aoa_strength) # This publishes the AOA to the other robots
+        # Publish AOA_strength to others
+        self.AOA_pub.publish(self.aoa_strength)
 
     def stop_robot(self):
         # stops robot from moving
