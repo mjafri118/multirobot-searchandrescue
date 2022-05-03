@@ -110,9 +110,6 @@ class SearcherFSM:
             # by default, stays within the current state
             next_state = self.current_state 
 
-            if self.quit_game: 
-                next_state = 'idle'
-
             if self.current_state is 'patrolling':
                 rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "Patrolling...")
 
@@ -220,6 +217,9 @@ class SearcherFSM:
                     next_state = 'patrolling'
                     self.start_game = False
             
+            if self.quit_game: 
+                next_state = 'idle'
+
             if(self.current_state != next_state):
                 rospy.loginfo(SEARCHER_CONFIGS[self.CURRENT_SEARCHER_IDX]['topic'] + ": " + "------ Changing state to: " + next_state + ' ------')                    
 
