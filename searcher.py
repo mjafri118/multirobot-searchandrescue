@@ -12,9 +12,9 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool, Float32
 from tf.transformations import euler_from_quaternion
 from sensor_msgs.msg import LaserScan
-from map_to_room_frame import map_to_room_frame
+from map_to_room_frame import map_to_room_frame, add_barrier_bumper_to_map
 
-STOP_DISTANCE = 0.3
+STOP_DISTANCE = 0.4
 LIDAR_ERROR = 0.05
 SAFE_STOP_DISTANCE = STOP_DISTANCE + LIDAR_ERROR
 
@@ -23,6 +23,7 @@ class Searcher:
         self.name = name
         self.topic = topic
         self.target_ip_address = target_ip_address
+        self.target_activated = False
 
         self.aoa_angle = 0 # bounded to [-180, 180]
         self.aoa_strength = 0 # bounded to [0, 1]
@@ -31,65 +32,24 @@ class Searcher:
         self.vel_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1, latch=True)
         self.is_target_sensed_pub = rospy.Publisher("/"+self.topic+"/target_node_sensed", Bool, queue_size=1)
         self.goal_waypoint_pub = rospy.Publisher("/"+self.topic+"/goal_waypoint", Odometry, queue_size=1)
+        self.time_out_pub = rospy.Publisher("/"+self.topic+"/timeout", Float32, queue_size=1)
         self.AOA_pub = rospy.Publisher("/"+self.topic+"/aoa_strength", Float32, queue_size=1)
+        self.stop_pub = rospy.Publisher("/"+self.topic+"/mobile_base/commands/velocity", Twist, queue_size=1)
+        self.request_aoa = rospy.Publisher(self.topic+'/run_test_2',Bool,latch=True, queue_size=1)
+        self.cancel_waypoint = rospy.Publisher(self.topic+'/cancel_waypoint',Bool, queue_size=1)
+        rospy.Subscriber('/activate_target',Bool,self.activate_target_cb)
 
+    # Need to prove that this works
     def get_map(self):
         return map_to_room_frame(self.topic)
-        # # Update self.map by subscribing to SLAM map topic
-        # drop_point_offset_x = 0.0 # if closer to left wall of room, offset should be positive
-        # drop_point_offset_y = 0.0 # if closer to back wall of room, offset should be positive
+    
+    # Need to prove that this works
+    def filter_map(self):
+        return add_barrier_bumper_to_map(self.get_map())
 
-        # map = rospy.wait_for_message('/'+self.topic+'/rtabmap/grid_map', OccupancyGrid)
-        # #res = map.info.resolution # m/cell
-        # width = map.info.width # cells
-        # height = map.info.height # cells
-        # actual_map_origin_x = map.info.origin.position.x
-        # actual_map_origin_y = map.info.origin.position.y
-        # #origin_angle = np.rad2deg(euler_from_quaternion(map.info.origin.orientation.z))
-        # data = map.data # the map data, in row-major order, starting with (0,0).  Occupancy probabilities are in range [0,100]. Unknown is -1
-        # res = 0.05 # Meters
-
-        # testbed_w = 7.92 # meters wide (heading of robot at initialization)
-        # testbed_h = 4.27 # meters tall
-        # testbed_w_cells = int(round(testbed_w/res))
-        # testbed_h_cells = int(round(testbed_h/res))
-        # smaller_map = np.zeros((testbed_w_cells,testbed_h_cells))
-
-        # origin_x = actual_map_origin_x # Should be negative
-        # origin_y = actual_map_origin_y # Should be negative
-        # origin_x_grid = int(round(origin_x/res))
-        # origin_y_grid = int(round(origin_y/res))
-
-        # lower_left_x = (-6.86 + drop_point_offset_x) - origin_x
-        # lower_left_y = (-0.99 - drop_point_offset_y) - origin_y
-        # lower_left_x_grid = int(round(lower_left_x/res))
-        # lower_left_y_grid = int(round(lower_left_y/res))
-
-        # upper_right_x = (1.07 + drop_point_offset_x) - origin_x
-        # upper_right_y = (3.28 - drop_point_offset_y) - origin_y
-        # upper_right_x_grid = int(round(upper_right_x/res))
-        # upper_right_y_grid = int(round(upper_right_y/res))
-
-        # iter = 0
-        # # Saving smaller map by limiting scope
-        # for i in range(height):
-        #     for j in range(width):
-        #         column = j
-        #         row = height-i
-        #         index = ((width)*(row-1)) + j
-        #         if row == -origin_y_grid and column == -origin_x_grid:
-        #             # If the robot is here
-        #             small_column = iter % testbed_w_cells
-        #             small_row = int((iter - small_row)/testbed_w_cells)
-        #             smaller_map[small_column,small_row] = 7 # Value for robot taking up a space
-        #             iter+=1
-
-        #         elif row >= lower_left_y_grid and row <= upper_right_y_grid and column >= lower_left_x_grid and column <= upper_right_x_grid:
-        #             small_column = iter % testbed_w_cells
-        #             small_row = int((iter - small_row)/testbed_w_cells)
-        #             smaller_map[small_column,small_row] = data[index]
-        #             iter+=1
-        # return smaller_map
+    def activate_target_cb(self,msg):
+        print("Target Activated")
+        self.target_activated = msg.data
  
     def is_target_sensed(self):
         # Ping the TX node's ip address, return true/false depending on if ping went through. 
@@ -104,46 +64,42 @@ class Searcher:
         
         # publish so other searcher FSMs can know when another robot detects the ip.
         # rospy.publish('locobotME/target_node_sensed', Boolean, target_sensed) # sync this up with subscribers in FSM inits
-        self.is_target_sensed_pub.publish(target_sensed)
-        return target_sensed
-    
-    # NOT COMPLETED (random data)
-    def update_aoa_reading(self):
-        # TODO: actually update AOA reading
-        # Make sure angle is relative to 0 deg in environment, not relative to robot heading
-        # this will require the robot to be fully stopped, and rotate itself. 
-        # pub = rospy.Subscriber('wsr_aoa_topic', wsr_aoa_array, self.wsr_cb)
-        # rospy.init_node('wsr_py_sub_node', anonymous=True)
-        self.aoa_angle = 15 #replace with actual AOA angle relative to world frame, not robot heading. Use self.get_location to find robot's pose
-        self.aoa_strength = 1 #replace with actual AOA strength
-        
-        # Publish AOA_strength- MUST HAVE
-        self.AOA_pub.pub(self.aoa_strength) # This publishes the AOA to the other robots
-    
-    # NOT COMPLETED
-    def wsr_cb(self, msg):
-        print("######################### Got AOA message ######################")
-        for tx in msg.aoa_array:
-            print("=========== ID: "+ tx.id +" =============")
-            print("TOP N AOA azimuth peak: "+ str(tx.aoa_azimuth))
-            print("TOp N AOA elevation peak: "+ str(tx.aoa_elevation))
-            print("Profile variance: "+ str(tx.profile_variance))
-            print("Profile saved as profile_"+tx.id+".csv")
-            self.aoa_angle = tx.aoa_elevation #(Calculation +- with the robot heading angle)
-            self.aoa_strength = tx.profile_variance
 
-            homedir = expanduser("~")
-            catkin_ws_name = rospy.get_param('~ws_name', 'catkin_ws')
-            rootdir = homedir+'/'+catkin_ws_name+"/src/WSR-Toolbox-cpp/debug/"
-            aoa_profile = np.asarray(tx.aoa_profile).reshape((tx.azimuth_dim, tx.elevation_dim))
-            np.savetxt(rootdir+'/profile_'+tx.id+'.csv', aoa_profile, delimiter=',')
+        # Also wait for activation of target by terminal publish: rostopic pub /activate_target Bool Latch=True
+        if self.target_activated:
+            self.is_target_sensed_pub.publish(target_sensed)
+            return target_sensed
+        else:
+            self.is_target_sensed_pub.publish(False)
+            return False
+    
+    def update_aoa_reading(self):
+        # Test this feature, talk to Caleb about anything before changing it
+        self.stop_robot()
+        rospy.loginfo(self.topic + ": " + "UPDATING AOA READING")
+        current_angle = self.get_location()[2]
+        self.request_aoa.publish(True)
+        rospy.loginfo(self.topic + ": " + "CHECKPOINT 1 of 2")
+        aoa_array_msg = rospy.wait_for_message(self.topic+'/wsr_aoa_topic', wsr_aoa_array)
+        rospy.loginfo(self.topic + ": " + "CHECKPOINT 2 of 2")
+        for tx in aoa_array_msg.aoa_array:
+            self.aoa_angle = tx.aoa_azimuth[0]
+            self.aoa_strength = tx.profile_variance # we will choose the highest
+        # Convert AOA_angle to world frame
+        self.aoa_angle = (self.aoa_angle + current_angle)
+        if self.aoa_angle > 180.0 and self.aoa_angle <= 360.0:
+            self.aoa_angle = -(360.0 - self.aoa_angle)
+        elif self.aoa_angle < -180.0 and self.aoa_angle >= -360.0:
+            self.aoa_angle = (360.0 - self.aoa_angle)
+        # Publish AOA_strength to others
+        self.AOA_pub.publish(self.aoa_strength)
 
     def stop_robot(self):
         # stops robot from moving
         move_cmd = Twist()
         move_cmd.linear.x = 0.0
         move_cmd.angular.z = 0.0
-        self.vel_pub.publish(move_cmd)
+        self.stop_pub.publish(move_cmd)
         return
     
     def obstacle_detected(self):
@@ -152,6 +108,7 @@ class Searcher:
 
         if _distance < SAFE_STOP_DISTANCE and _distance > 0:
             self.stop_robot()
+            # rospy.loginfo(self.topic + ": " + "OBSTACLE DETECTED. ROBO")
             return True
         return False
 
@@ -159,10 +116,9 @@ class Searcher:
         scan = rospy.wait_for_message(self.topic + '/scan', LaserScan)
         scan_filter = []
        
-        samples = len(scan.ranges)  # The number of samples is defined in 
-                                    # turtlebot3_<model>.gazebo.xacro file,
-                                    # the default is 360.
-        samples_view = 120          # 1 <= samples_view <= samples CHANGED FROM 1 TO 180 BY CALEB MOORE
+        samples = len(scan.ranges)
+
+        samples_view = 120
         
         if samples_view > samples:
             samples_view = samples
@@ -187,10 +143,9 @@ class Searcher:
 
     def move_robot_in_direction(self,linear=True,positive=True):
         # note: only making small steps, the FSM will check for obstacles
-        # /locobot/mobile_base/commands/velocity geometry_msgs/Twist
 
         STEP_SIZE_LINEAR = 0.3 # will move these many m/s at a time linearly
-        STEP_SIZE_ANGULAR = 0.6 # will move these many rad/s at a time
+        STEP_SIZE_ANGULAR = 0.9 # will move these many rad/s at a time
 
         move_cmd = Twist()
         # Fill in message details
@@ -206,18 +161,20 @@ class Searcher:
         # Publish the message
         self.vel_pub.publish(move_cmd)
     
-    def move_robot_to_waypoint(self, waypoint):
+    def move_robot_to_waypoint(self, waypoint,timeout=25):
         # currently requires waypoint.py to be running on each robot
         # give a discrete (x,y,theta) location for robot to travel to with obstacle avoidance
-        #  this should just send a publish, i.e. do not make this function wait until reaching the waypoint before completion
-
+        # function prefers input of (x,y,theta), but will accept (x,y) and send the robot to (x,y,0)
+        time_out = Float32()
         goal_cmd = Odometry()
+        time_out.data = timeout
         goal_cmd.pose.pose.position.x = waypoint[0]
         goal_cmd.pose.pose.position.y = waypoint[1]
         if len(waypoint) == 2:
-            goal_cmd.pose.pose.position.z = 0.0
+            goal_cmd.pose.pose.position.z = 0.0 # May need to be smarter with this choice
         else:
             goal_cmd.pose.pose.position.z = waypoint[2]
+        self.time_out_pub.publish(time_out)
         self.goal_waypoint_pub.publish(goal_cmd)
 
     def is_moving(self):
@@ -239,11 +196,11 @@ class Searcher:
             topic_response.pose.pose.orientation.w)
         return (topic_response.pose.pose.position.x, topic_response.pose.pose.position.y, np.rad2deg(euler_from_quaternion(orientation)[2]))
 
-    
+
 if __name__ == "__main__":
-    S = Searcher('searcher1', 'locobot', '192.168.1.30')
-    # print(S.is_moving())
+    S = Searcher('searcher1', 'locobot5', '192.168.1.30')
+    # rospy.loginfo(self.topic + ": " + S.is_moving())
     while True:
         print(S.get_location())
-    # print('Is target sensed: ' + 'yes' if S.is_target_sensed() else 'no')
+    # rospy.loginfo(self.topic + ": " + 'Is target sensed: ' + 'yes' if S.is_target_sensed() else 'no')
     # S.move_robot_in_direction(linear=True, positive=True)
